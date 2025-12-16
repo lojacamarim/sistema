@@ -12,7 +12,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.5/purify.min.js"></script>
     <script src="database.js"></script>
-    <style>
+     <style>
                 :root {
             --primary: #1a1a2e;
             --primary-dark: #1a1a2e;
@@ -1091,13 +1091,13 @@ button[data-view="new-product"] {
                                     <th>Código</th>
                                     <th>Nome</th>
                                     <th>Categoria</th>
-                                    <th>Custo de Compra</th>
+                                    <th>Custo/Compra</th>
                                     <th>CMV</th>
                                     <th>Markup</th>
-                                    <th>Preço Sugerido</th>
+                                    <th>Sugerido</th>
                                     <th>Preço de Venda</th>
                                     <th>Estoque</th>
-                                    <th>Valor Estoque</th>
+                                    <th>Valor total</th>
                                     <th>Ações</th>
                                 </tr>
                             </thead>
@@ -3627,15 +3627,15 @@ function updateProductsList() {
         editBtn.appendChild(editIcon);
         actionsCell.appendChild(editBtn);
         
-        // Botão Editar Preço
-        const editPriceBtn = document.createElement('button');
-        editPriceBtn.className = 'btn btn-small btn-info edit-price';
-        editPriceBtn.setAttribute('data-id', product.id);
-        editPriceBtn.setAttribute('title', 'Editar Apenas Preço');
-        const editPriceIcon = document.createElement('i');
-        editPriceIcon.className = 'fas fa-tag';
-        editPriceBtn.appendChild(editPriceIcon);
-        actionsCell.appendChild(editPriceBtn);
+        // Botão Editar Estoque (SUBSTITUI o botão Editar Apenas Preço)
+        const editStockBtn = document.createElement('button');
+        editStockBtn.className = 'btn btn-small btn-info edit-stock';
+        editStockBtn.setAttribute('data-id', product.id);
+        editStockBtn.setAttribute('title', 'Editar Estoque');
+        const editStockIcon = document.createElement('i');
+        editStockIcon.className = 'fas fa-box';
+        editStockBtn.appendChild(editStockIcon);
+        actionsCell.appendChild(editStockBtn);
         
         // Botão Excluir
         const deleteBtn = document.createElement('button');
@@ -3668,15 +3668,15 @@ function updateProductsList() {
             });
         });
         
-        document.querySelectorAll('.edit-price').forEach(button => {
+        document.querySelectorAll('.edit-stock').forEach(button => {
             button.addEventListener('click', function() {
                 const productId = DOMPurify.sanitize(this.getAttribute('data-id'));
                 const product = systemData.products.find(p => p.id === productId);
                 if (product) {
                     const sanitizedName = DOMPurify.sanitize(product.name);
-                    const newPrice = prompt(`Digite o novo preço para ${sanitizedName}:`, product.sellingPrice);
-                    if (newPrice !== null && !isNaN(parseFloat(newPrice))) {
-                        updateProductPrice(productId, sanitizeNumber(parseFloat(newPrice)));
+                    const newStock = prompt(`Digite a nova quantidade em estoque para "${sanitizedName}":`, product.stock);
+                    if (newStock !== null && !isNaN(parseInt(newStock)) && parseInt(newStock) >= 0) {
+                        updateProductStock(productId, sanitizeNumber(parseInt(newStock)));
                     }
                 }
             });
@@ -3698,6 +3698,20 @@ function updateProductsList() {
     
     // Atualizar resumo do estoque
     updateInventorySummary();
+}
+
+async function updateProductStock(productId, newStock) {
+    const sanitizedId = DOMPurify.sanitize(productId);
+    const product = systemData.products.find(p => p.id === sanitizedId);
+    if (product && !isNaN(newStock) && newStock >= 0) {
+        product.stock = newStock;
+        await saveData();
+        showAlert(`Estoque do produto atualizado para ${newStock} unidades`, 'success');
+        updateProductsList();
+        updateInventorySummary();
+    } else {
+        showAlert('Quantidade de estoque inválida. Deve ser um número inteiro não-negativo.', 'error');
+    }
 }
 
 function filterProducts() {
