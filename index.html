@@ -912,15 +912,70 @@
                 justify-content: space-between;
             }
         }
+
+        .logo-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 60px;
+    margin-bottom: 10px;
+}
+
+.logo-image {
+    max-width: 180px;
+    height: auto;
+    display: block;
+}
+
+.logo-fallback {
+    display: none; /* Escondido por padrão */
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: white;
+    margin: 0;
+}
+
+.logo-subtitle {
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 0.9rem;
+    margin-top: 5px;
+}
+
+/* Se a imagem não carregar, mostrar o texto */
+.logo-image[src=""] + .logo-fallback,
+.logo-image:not([src]) + .logo-fallback {
+    display: block;
+}
+
+/* Responsivo para telas menores */
+@media (max-width: 992px) {
+    .logo-image {
+        max-width: 140px;
+    }
+    
+    .logo-container {
+        min-height: 50px;
+    }
+}
+
+@media (max-width: 768px) {
+    .logo-image {
+        max-width: 120px;
+    }
+}
     </style>
 </head>
 <body>
     <div class="container">
         <aside class="sidebar">
-            <div class="logo">
-                <h1>CAMARIM<span>.</span></h1>
-                <p>Makeup & Skincare</p>
-            </div>
+           <div class="logo">
+    <div class="logo-container">
+        <img src="logo-camarim.png" alt="CamarimLogo" class="logo-image">
+        <h1 class="logo-fallback">CAMARIM<span>.</span></h1>
+    </div>
+    <p class="logo-subtitle">Makeup & Skincare</p>
+</div>
             
             <nav class="nav-menu">
                 <a href="#dashboard" class="nav-item active" data-view="dashboard">
@@ -930,7 +985,7 @@
                     <i class="fas fa-boxes"></i> Produtos
                 </a>
                 <a href="#new-product" class="nav-item" data-view="new-product">
-                    <i class="fas fa-plus-circle"></i> Cadastrar Produto
+                    <i class="fas fa-plus-circle"></i> Cadastrar
                 </a>
                 <a href="#sales" class="nav-item" data-view="sales">
                     <i class="fas fa-shopping-cart"></i> Vendas
