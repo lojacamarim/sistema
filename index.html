@@ -12,8 +12,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.5/purify.min.js"></script>
     <script src="database.js"></script>
-     <style>
-                :root {
+    <style>
+        :root {
             --primary: #1a1a2e;
             --primary-dark: #1a1a2e;
             --secondary: #ff6b8b;
@@ -537,8 +537,8 @@
         .modal-content {
             background-color: white;
             border-radius: var(--border-radius);
-            width: 90%;
-            max-width: 500px;
+            width: 100%;
+            max-width: 1080px;
             max-height: 90vh;
             overflow-y: auto;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
@@ -549,7 +549,7 @@
         }
 
         .modal-header {
-            padding: 20px;
+            padding: 30px;
             border-bottom: 1px solid var(--light-gray);
             display: flex;
             justify-content: space-between;
@@ -796,121 +796,120 @@
             color: #666;
         }
 
-        /* Adicione isso no seu arquivo CSS */
-#filter-products,
-#export-products,
-button[data-view="new-product"] {
-    height: 36px !important; /* Ajuste este valor conforme necessário */
-    padding: 0.375rem 0.75rem !important;
-    line-height: 1.5 !important;
-    border-width: 1px !important;
-}
+        /* Ajustes de altura para botões */
+        #filter-products,
+        #export-products,
+        button[data-view="new-product"] {
+            height: 36px !important;
+            padding: 0.375rem 0.75rem !important;
+            line-height: 1.5 !important;
+            border-width: 1px !important;
+        }
 
-/* Adicione estas regras CSS */
-.products-summary {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 20px;
-    margin-bottom: 30px;
-}
+        /* Resumo de produtos */
+        .products-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
 
-.products-summary .card {
-    background-color: white;
-    border-radius: var(--border-radius);
-    padding: 20px;
-    box-shadow: var(--box-shadow);
-}
+        .products-summary .card {
+            background-color: white;
+            border-radius: var(--border-radius);
+            padding: 20px;
+            box-shadow: var(--box-shadow);
+        }
 
-.products-summary .card-header {
-    display: flex;
-    align-items: center;
-    margin-bottom: 15px;
-}
+        .products-summary .card-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
 
-.products-summary .card-icon {
-    width: 50px;
-    height: 50px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.3rem;
-    margin-right: 15px;
-    background-color: rgba(138, 43, 226, 0.1);
-    color: var(--primary);
-}
+        .products-summary .card-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+            margin-right: 15px;
+            background-color: rgba(138, 43, 226, 0.1);
+            color: var(--primary);
+        }
 
-.products-summary .card-title {
-    font-size: 1rem;
-    color: var(--gray);
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    margin: 0;
-}
+        .products-summary .card-title {
+            font-size: 1rem;
+            color: var(--gray);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin: 0;
+        }
 
-.products-summary .card-value {
-    font-size: 1.8rem;
-    font-weight: 700;
-    color: var(--dark);
-    margin: 5px 0;
-}
+        .products-summary .card-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--dark);
+            margin: 5px 0;
+        }
 
-.products-summary .card-subtitle {
-    font-size: 0.9rem;
-    color: var(--gray);
-}
+        .products-summary .card-subtitle {
+            font-size: 0.9rem;
+            color: var(--gray);
+        }
 
-.inventory-total-card .card-icon {
-    background-color: rgba(76, 175, 80, 0.1);
-    color: var(--success);
-}
+        .inventory-total-card .card-icon {
+            background-color: rgba(76, 175, 80, 0.1);
+            color: var(--success);
+        }
 
-.inventory-cost-card .card-icon {
-    background-color: rgba(255, 152, 0, 0.1);
-    color: var(--warning);
-}
+        .inventory-cost-card .card-icon {
+            background-color: rgba(255, 152, 0, 0.1);
+            color: var(--warning);
+        }
 
-.inventory-margin-card .card-icon {
-    background-color: rgba(33, 150, 243, 0.1);
-    color: #2196F3;
-}
+        .inventory-margin-card .card-icon {
+            background-color: rgba(33, 150, 243, 0.1);
+            color: #2196F3;
+        }
 
-.products-actions {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
-    flex-wrap: wrap;
-    gap: 15px;
-}
+        .products-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
 
-.products-actions .left-actions {
-    display: flex;
-    gap: 15px;
-    align-items: center;
-}
+        .products-actions .left-actions {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
 
-.products-actions .right-actions {
-    display: flex;
-    gap: 15px;
-}
+        .products-actions .right-actions {
+            display: flex;
+            gap: 15px;
+        }
 
-@media (max-width: 768px) {
-    .products-actions {
-        flex-direction: column;
-        align-items: stretch;
-    }
-    
-    .products-actions .left-actions,
-    .products-actions .right-actions {
-        width: 100%;
-    }
-    
-    .products-actions .right-actions {
-        justify-content: space-between;
-    }
-
-}
+        @media (max-width: 768px) {
+            .products-actions {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .products-actions .left-actions,
+            .products-actions .right-actions {
+                width: 100%;
+            }
+            
+            .products-actions .right-actions {
+                justify-content: space-between;
+            }
+        }
     </style>
 </head>
 <body>
@@ -972,6 +971,7 @@ button[data-view="new-product"] {
             </div>
             
             <div id="view-container">
+                <!-- Dashboard View -->
                 <div id="dashboard-view" class="view">
                     <div class="dashboard-cards">
                         <div class="card card-1">
@@ -980,8 +980,7 @@ button[data-view="new-product"] {
                             </div>
                             <h3>Produtos Cadastrados</h3>
                             <div class="card-value" id="total-products">0</div>
-                            <div class="card-change positive">
-                            </div>
+                            <div class="card-change positive"></div>
                         </div>
                         
                         <div class="card card-2">
@@ -990,8 +989,7 @@ button[data-view="new-product"] {
                             </div>
                             <h3>Vendas Hoje</h3>
                             <div class="card-value" id="today-sales">0</div>
-                            <div class="card-change positive">
-                            </div>
+                            <div class="card-change positive"></div>
                         </div>
                         
                         <div class="card card-3">
@@ -1002,8 +1000,7 @@ button[data-view="new-product"] {
                             <div class="card-value">
                                 <span class="currency" id="monthly-revenue">0,00</span>
                             </div>
-                            <div class="card-change positive">
-                            </div>
+                            <div class="card-change positive"></div>
                         </div>
                         
                         <div class="card card-4">
@@ -1038,12 +1035,12 @@ button[data-view="new-product"] {
                                     <th>Pagamento</th>
                                 </tr>
                             </thead>
-                            <tbody id="recent-sales-body">
-                            </tbody>
+                            <tbody id="recent-sales-body"></tbody>
                         </table>
                     </div>
                 </div>
                 
+                <!-- Products View -->
                 <div id="products-view" class="view d-none">
                     <div class="mb-20">
                         <div class="alert alert-success d-none" id="product-alert">
@@ -1052,8 +1049,7 @@ button[data-view="new-product"] {
                         </div>
                     </div>
                     
-                    <div class="products-summary" id="inventory-summary">
-                    </div>
+                    <div class="products-summary" id="inventory-summary"></div>
                     
                     <div class="products-actions">
                         <div class="left-actions">
@@ -1101,12 +1097,12 @@ button[data-view="new-product"] {
                                     <th>Ações</th>
                                 </tr>
                             </thead>
-                            <tbody id="products-body">
-                            </tbody>
+                            <tbody id="products-body"></tbody>
                         </table>
                     </div>
                 </div>
                 
+                <!-- New Product View -->
                 <div id="new-product-view" class="view d-none">
                     <div class="mb-20">
                         <div class="alert alert-success d-none" id="new-product-alert">
@@ -1268,6 +1264,7 @@ button[data-view="new-product"] {
                     </div>
                 </div>
                 
+                <!-- Sales View -->
                 <div id="sales-view" class="view d-none">
                     <div class="header">
                         <div class="header-actions">
@@ -1294,12 +1291,12 @@ button[data-view="new-product"] {
                                     <th>Ações</th>
                                 </tr>
                             </thead>
-                            <tbody id="sales-body">
-                            </tbody>
+                            <tbody id="sales-body"></tbody>
                         </table>
                     </div>
                 </div>
                 
+                <!-- New Sale View -->
                 <div id="new-sale-view" class="view d-none">
                     <div class="header">
                         <div class="header-actions">
@@ -1317,11 +1314,9 @@ button[data-view="new-product"] {
                                 <input type="text" class="form-control" id="sale-product-search" placeholder="Buscar produto por nome ou código...">
                             </div>
                             
-                            <div id="sale-products-list">
-                            </div>
+                            <div id="sale-products-list"></div>
                             
-                            <div id="sale-cart">
-                            </div>
+                            <div id="sale-cart"></div>
                             
                             <div id="empty-cart-message" class="text-center" style="padding: 40px; color: var(--gray);">
                                 <i class="fas fa-shopping-cart fa-3x mb-20"></i>
@@ -1365,7 +1360,7 @@ button[data-view="new-product"] {
                             
                             <div class="form-group d-none" id="card-fee-container" style="margin: 15px 0;">
                                 <label for="card-fee">Taxa do Cartão (%)</label>
-                                <input type="number" id="card-fee" class="form-control" step="0.1" min="0" value="3.5">
+                                    <input type="number" id="card-fee" class="form-control" step="0.1" min="0" value="3.5">
                                 <div class="form-text" id="card-fee-info">Taxa para cartão de débito: 2% | Crédito: 4.5%</div>
                             </div>
                             
@@ -1395,6 +1390,7 @@ button[data-view="new-product"] {
                     </div>
                 </div>
                 
+                <!-- Reports View -->
                 <div id="reports-view" class="view d-none">
                     <div class="header">
                         <div class="header-actions">
@@ -1413,9 +1409,7 @@ button[data-view="new-product"] {
                             <div class="card-value">
                                 <span class="currency" id="report-revenue">0,00</span>
                             </div>
-                            <div class="card-change">
-                                Últimos 30 dias
-                            </div>
+                            <div class="card-change">Últimos 30 dias</div>
                         </div>
                         
                         <div class="card card-2">
@@ -1426,9 +1420,7 @@ button[data-view="new-product"] {
                             <div class="card-value">
                                 <span class="currency" id="report-cost">0,00</span>
                             </div>
-                            <div class="card-change">
-                                Últimos 30 dias
-                            </div>
+                            <div class="card-change">Últimos 30 dias</div>
                         </div>
                         
                         <div class="card card-3">
@@ -1439,8 +1431,7 @@ button[data-view="new-product"] {
                             <div class="card-value">
                                 <span class="currency" id="report-profit">0,00</span>
                             </div>
-                            <div class="card-change positive">
-                            </div>
+                            <div class="card-change positive"></div>
                         </div>
                         
                         <div class="card card-4">
@@ -1475,12 +1466,12 @@ button[data-view="new-product"] {
                                     <th>Lucro</th>
                                 </tr>
                             </thead>
-                            <tbody id="top-products-body">
-                            </tbody>
+                            <tbody id="top-products-body"></tbody>
                         </table>
                     </div>
                 </div>
                 
+                <!-- Settings View -->
                 <div id="settings-view" class="view d-none">
                     <div class="header">
                         <button class="btn btn-light" data-view="dashboard">
@@ -1555,20 +1546,20 @@ button[data-view="new-product"] {
                                 <button type="submit" class="btn btn-success">Salvar Configurações</button>
                             </div>
 
-
                             <footer style="background-color: #fff; padding: 15px; margin-top: 30px; border-top: 1px solid #dee2e6;">
-                              <div style="max-width: 1200px; margin: 0 auto; text-align: center;">
-                              <p style="margin: 0; color: #6c757d; font-size: 0.9rem;">
-                              <strong style="color: #FF6B8B;">Camarim</strong>
-                              <span style="font-size: 1.1rem;">&copy;</span> 2025 - Sistema de Gestão desenvolvido por 
-                              <span style="color: #FF6B8B; font-weight: 500;">Guilherme Silva Vanderley</span></p>
-                            </div>
+                                <div style="max-width: 1200px; margin: 0 auto; text-align: center;">
+                                    <p style="margin: 0; color: #6c757d; font-size: 0.9rem;">
+                                        <strong style="color: #FF6B8B;">Camarim</strong>
+                                        <span style="font-size: 1.1rem;">&copy;</span> 2025 - Sistema de Gestão desenvolvido por 
+                                        <span style="color: #FF6B8B; font-weight: 500;">Guilherme Silva Vanderley</span>
+                                    </p>
+                                </div>
                             </footer>
-
                         </form>
                     </div>
                 </div>
                 
+                <!-- Database View -->
                 <div id="database-view" class="view d-none">
                     <div class="header">
                         <div class="header-actions">
@@ -1579,8 +1570,7 @@ button[data-view="new-product"] {
                     </div>
                     
                     <div class="form-container">
-                        <div id="db-info-container" class="mb-20">
-                        </div>
+                        <div id="db-info-container" class="mb-20"></div>
                         
                         <div class="dashboard-cards">
                             <div class="card card-1">
@@ -1670,14 +1660,14 @@ button[data-view="new-product"] {
                         </div>
                         
                         <footer style="background-color: #fff; padding: 15px; margin-top: 30px; border-top: 1px solid #dee2e6;">
-                         <div style="max-width: 1200px; margin: 0 auto; text-align: center;">
-                              <p style="margin: 0; color: #6c757d; font-size: 0.9rem;">
-                              <strong style="color: #FF6B8B;">Camarim</strong>
-                              <span style="font-size: 1.1rem;">&copy;</span> 2025 - Sistema de Gestão desenvolvido por 
-                              <span style="color: #FF6B8B; font-weight: 500;">Guilherme Silva Vanderley</span></p>
+                            <div style="max-width: 1200px; margin: 0 auto; text-align: center;">
+                                <p style="margin: 0; color: #6c757d; font-size: 0.9rem;">
+                                    <strong style="color: #FF6B8B;">Camarim</strong>
+                                    <span style="font-size: 1.1rem;">&copy;</span> 2025 - Sistema de Gestão desenvolvido por 
+                                    <span style="color: #FF6B8B; font-weight: 500;">Guilherme Silva Vanderley</span>
+                                </p>
                             </div>
                         </footer>
-
                     </div>
                 </div>
             </div>
@@ -1756,8 +1746,7 @@ button[data-view="new-product"] {
                 <button class="modal-close" data-modal="sale-details-modal">&times;</button>
             </div>
             <div class="modal-body">
-                <div id="sale-details-content">
-                </div>
+                <div id="sale-details-content"></div>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-light" data-modal="sale-details-modal">Fechar</button>
@@ -1776,8 +1765,7 @@ button[data-view="new-product"] {
                 <button class="modal-close" data-modal="pix-modal">&times;</button>
             </div>
             <div class="modal-body">
-                <div id="pix-content">
-                </div>
+                <div id="pix-content"></div>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-light" data-modal="pix-modal">Cancelar</button>
@@ -1796,8 +1784,7 @@ button[data-view="new-product"] {
                 <button class="modal-close" data-modal="receipt-modal">&times;</button>
             </div>
             <div class="modal-body">
-                <div id="receipt-content">
-                </div>
+                <div id="receipt-content"></div>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-light" data-modal="receipt-modal">Fechar</button>
@@ -1909,8 +1896,107 @@ button[data-view="new-product"] {
             </div>
             <div class="modal-footer">
                 <button class="btn btn-light" data-modal="pdf-report-modal">Cancelar</button>
-                                <button class="btn btn-success" id="generate-pdf-btn">
+                <button class="btn btn-success" id="generate-pdf-btn">
                     <i class="fas fa-file-pdf"></i> Gerar PDF
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Edit Sale Modal -->
+    <div class="modal" id="edit-sale-modal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h3>Editar Venda</h3>
+                <button class="modal-close" data-modal="edit-sale-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="edit-sale-content">
+                    <div class="cart-container">
+                        <div class="cart-items">
+                            <h3 style="margin-bottom: 20px;">Produtos</h3>
+                            
+                            <div class="form-group mb-20">
+                                <input type="text" class="form-control" id="edit-sale-product-search" placeholder="Buscar produto por nome ou código...">
+                            </div>
+                            
+                            <div id="edit-sale-products-list"></div>
+                            
+                            <div id="edit-sale-cart"></div>
+                            
+                            <div id="edit-empty-cart-message" class="text-center" style="padding: 40px; color: var(--gray);">
+                                <i class="fas fa-shopping-cart fa-3x mb-20"></i>
+                                <h4>Carrinho vazio</h4>
+                                <p>Adicione produtos usando a busca acima</p>
+                            </div>
+                        </div>
+                        
+                        <div class="cart-summary">
+                            <h3 style="margin-bottom: 20px;">Resumo da Venda</h3>
+                            
+                            <div class="form-group" style="margin: 15px 0;">
+                                <label for="edit-attendant">Atendente *</label>
+                                <select id="edit-attendant" class="form-control" required>
+                                    <option value="">Selecione o atendente</option>
+                                    <option value="Gabryella">Gabryella</option>
+                                    <option value="Guilherme">Guilherme</option>
+                                    <option value="Outro">Outro</option>
+                                </select>
+                            </div>
+                            
+                            <div class="summary-row">
+                                <span>Subtotal:</span>
+                                <span id="edit-cart-subtotal" class="currency">0,00</span>
+                            </div>
+                            
+                            <div class="form-group" style="margin: 15px 0;">
+                                <label for="edit-sale-discount">Desconto (R$)</label>
+                                <input type="number" id="edit-sale-discount" class="form-control" step="0.01" min="0" value="0">
+                            </div>
+                            
+                            <div class="form-group" style="margin: 15px 0;">
+                                <label for="edit-payment-method">Método de Pagamento</label>
+                                <select id="edit-payment-method" class="form-control">
+                                    <option value="cash">Dinheiro</option>
+                                    <option value="pix">Pix</option>
+                                    <option value="debit">Cartão de Débito</option>
+                                    <option value="credit">Cartão de Crédito</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group d-none" id="edit-card-fee-container" style="margin: 15px 0;">
+                                <label for="edit-card-fee">Taxa do Cartão (%)</label>
+                                <input type="number" id="edit-card-fee" class="form-control" step="0.1" min="0" value="3.5">
+                                <div class="form-text" id="edit-card-fee-info">Taxa para cartão de débito: 2% | Crédito: 4.5%</div>
+                            </div>
+                            
+                            <div class="summary-row">
+                                <span>Desconto:</span>
+                                <span id="edit-cart-discount" class="currency">0,00</span>
+                            </div>
+                            
+                            <div class="summary-row d-none" id="edit-cart-fees-row">
+                                <span>Taxas:</span>
+                                <span id="edit-cart-fees" class="currency">0,00</span>
+                            </div>
+                            
+                            <div class="summary-row total">
+                                <span>TOTAL:</span>
+                                <span id="edit-cart-total" class="currency">0,00</span>
+                            </div>
+                            
+                            <div class="alert alert-warning mt-20">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                <span>Ao salvar as alterações, o estoque será ajustado automaticamente.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-light" data-modal="edit-sale-modal">Cancelar</button>
+                <button class="btn btn-success" id="save-edited-sale">
+                    <i class="fas fa-save"></i> Salvar Alterações
                 </button>
             </div>
         </div>
@@ -1919,7 +2005,7 @@ button[data-view="new-product"] {
     <input type="file" id="file-input" style="display: none;" accept=".json">
     
 <script>
-// Sistema de Gestão de Vendas - Camarim (Versão IndexedDB Corrigida)
+// Sistema de Gestão de Vendas - Camarim (Versão Completa com Edição de Vendas)
 
 // ============================================
 // 0. INICIALIZAÇÃO E FALLBACK DO DATABASE MANAGER
@@ -2039,6 +2125,14 @@ let appState = {
     },
     currentSaleData: null,
     databaseReady: false
+};
+
+// Dados para edição de vendas
+let editingSaleData = {
+    saleId: null,
+    originalSale: null,
+    cart: [],
+    originalCart: []
 };
 
 // ============================================
@@ -2448,6 +2542,21 @@ function setupEventListeners() {
         });
     }
     
+    // Botão para salvar venda editada
+    const saveEditedSaleBtn = document.getElementById('save-edited-sale');
+    if (saveEditedSaleBtn) {
+        saveEditedSaleBtn.addEventListener('click', saveEditedSale);
+    }
+    
+    // Event listeners para campos do modal de edição
+    const editPaymentMethod = document.getElementById('edit-payment-method');
+    const editSaleDiscount = document.getElementById('edit-sale-discount');
+    const editCardFee = document.getElementById('edit-card-fee');
+    
+    if (editPaymentMethod) editPaymentMethod.addEventListener('change', updateEditPaymentMethod);
+    if (editSaleDiscount) editSaleDiscount.addEventListener('input', updateEditSaleSummary);
+    if (editCardFee) editCardFee.addEventListener('input', updateEditSaleSummary);
+    
     // ============================================
     // EVENT LISTENERS PARA BANCO DE DADOS
     // ============================================
@@ -2705,6 +2814,39 @@ function updatePaymentMethod() {
     updateSaleSummary();
 }
 
+function updateEditPaymentMethod() {
+    const paymentMethod = document.getElementById('edit-payment-method');
+    const cardFeeContainer = document.getElementById('edit-card-fee-container');
+    const cardFeeInfo = document.getElementById('edit-card-fee-info');
+    const cardFee = document.getElementById('edit-card-fee');
+    
+    if (!paymentMethod || !cardFeeContainer) return;
+    
+    const method = paymentMethod.value;
+    
+    if (method === 'debit') {
+        cardFeeContainer.classList.remove('d-none');
+        if (cardFeeInfo) {
+            cardFeeInfo.textContent = `Taxa para cartão de débito: ${sanitizeNumber(systemData.settings.defaultDebitFee)}%`;
+        }
+        if (cardFee) {
+            cardFee.value = sanitizeNumber(systemData.settings.defaultDebitFee);
+        }
+    } else if (method === 'credit') {
+        cardFeeContainer.classList.remove('d-none');
+        if (cardFeeInfo) {
+            cardFeeInfo.textContent = `Taxa para cartão de crédito: ${sanitizeNumber(systemData.settings.defaultCreditFee)}%`;
+        }
+        if (cardFee) {
+            cardFee.value = sanitizeNumber(systemData.settings.defaultCreditFee);
+        }
+    } else if (method === 'cash' || method === 'pix') {
+        cardFeeContainer.classList.add('d-none');
+    }
+    
+    updateEditSaleSummary();
+}
+
 async function processSale() {
     if (appState.cart.length === 0) {
         showAlert('Adicione produtos ao carrinho antes de finalizar a venda', 'error');
@@ -2834,7 +2976,490 @@ async function confirmSale(sale) {
 }
 
 // ============================================
-// 8. SISTEMA DE RECIBOS E IMPRESSÃO
+// 8. FUNÇÕES PARA EDIÇÃO DE VENDAS
+// ============================================
+
+function editSale(saleId) {
+    const sanitizedId = DOMPurify.sanitize(saleId);
+    const sale = systemData.sales.find(s => s.id === sanitizedId);
+    
+    if (!sale) {
+        showAlert('Venda não encontrada', 'error');
+        return;
+    }
+    
+    // Salvar dados originais
+    editingSaleData.saleId = sanitizedId;
+    editingSaleData.originalSale = JSON.parse(JSON.stringify(sale));
+    
+    // Converter itens da venda para o formato do carrinho
+    editingSaleData.cart = sale.items.map(item => ({
+        productId: item.productId,
+        name: item.name,
+        price: item.price,
+        quantity: item.quantity
+    }));
+    
+    editingSaleData.originalCart = JSON.parse(JSON.stringify(editingSaleData.cart));
+    
+    // Preencher modal de edição
+    populateEditSaleModal(sale);
+    showModal('edit-sale-modal');
+}
+
+function populateEditSaleModal(sale) {
+    // Preencher campos do formulário
+    const attendantSelect = document.getElementById('edit-attendant');
+    if (attendantSelect) {
+        attendantSelect.value = sale.attendant || '';
+    }
+    
+    const discountInput = document.getElementById('edit-sale-discount');
+    if (discountInput) {
+        discountInput.value = sale.discount || 0;
+    }
+    
+    const paymentMethodSelect = document.getElementById('edit-payment-method');
+    if (paymentMethodSelect) {
+        paymentMethodSelect.value = sale.paymentMethod || 'cash';
+    }
+    
+    const cardFeeInput = document.getElementById('edit-card-fee');
+    if (cardFeeInput && sale.cardFee) {
+        cardFeeInput.value = sale.cardFee;
+    }
+    
+    // Atualizar lista de produtos e carrinho
+    updateEditSaleProductsList();
+    updateEditCartDisplay();
+    updateEditPaymentMethod();
+    updateEditSaleSummary();
+}
+
+function updateEditSaleProductsList() {
+    const container = document.getElementById('edit-sale-products-list');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    systemData.products.forEach(product => {
+        const sanitizedName = DOMPurify.sanitize(product.name);
+        const existingItem = editingSaleData.cart.find(item => item.productId === product.id);
+        const currentQuantity = existingItem ? existingItem.quantity : 0;
+        
+        // Calcular estoque disponível (considerando itens já no carrinho)
+        const availableStock = product.stock + currentQuantity;
+        
+        const productElement = document.createElement('div');
+        productElement.className = 'cart-item';
+        productElement.innerHTML = `
+            <div class="cart-item-info">
+                <h4>${sanitizedName}</h4>
+                <div class="code">${product.id} | Estoque: ${availableStock}</div>
+                <div class="currency" style="font-weight: 600; margin-top: 5px;">${formatCurrency(product.sellingPrice)}</div>
+            </div>
+            <div class="cart-item-quantity">
+                <button class="quantity-btn edit-minus" data-id="${DOMPurify.sanitize(product.id)}">-</button>
+                <span id="edit-cart-qty-${DOMPurify.sanitize(product.id)}">${currentQuantity}</span>
+                <button class="quantity-btn edit-plus" data-id="${DOMPurify.sanitize(product.id)}">+</button>
+                <button class="btn btn-small btn-success edit-add-to-cart" data-id="${DOMPurify.sanitize(product.id)}" style="margin-left: 10px;">
+                    <i class="fas fa-cart-plus"></i> Adicionar
+                </button>
+            </div>
+        `;
+        container.appendChild(productElement);
+    });
+    
+    // Adicionar event listeners
+    setTimeout(() => {
+        // Botões de adicionar/remover quantidade
+        document.querySelectorAll('.edit-plus').forEach(button => {
+            button.addEventListener('click', function() {
+                const productId = DOMPurify.sanitize(this.getAttribute('data-id'));
+                const qtySpan = document.getElementById(`edit-cart-qty-${productId}`);
+                if (!qtySpan) return;
+                
+                let currentQty = parseInt(qtySpan.textContent) || 0;
+                const product = systemData.products.find(p => p.id === productId);
+                if (product) {
+                    // Verificar estoque disponível (considerando itens já no carrinho)
+                    const cartItem = editingSaleData.cart.find(item => item.productId === productId);
+                    const currentCartQty = cartItem ? cartItem.quantity : 0;
+                    const availableStock = product.stock + currentCartQty;
+                    
+                    if (currentQty < availableStock) {
+                        currentQty++;
+                        qtySpan.textContent = currentQty;
+                    }
+                }
+            });
+        });
+        
+        document.querySelectorAll('.edit-minus').forEach(button => {
+            button.addEventListener('click', function() {
+                const productId = DOMPurify.sanitize(this.getAttribute('data-id'));
+                const qtySpan = document.getElementById(`edit-cart-qty-${productId}`);
+                if (!qtySpan) return;
+                
+                let currentQty = parseInt(qtySpan.textContent) || 0;
+                if (currentQty > 0) {
+                    currentQty--;
+                    qtySpan.textContent = currentQty;
+                }
+            });
+        });
+        
+        document.querySelectorAll('.edit-add-to-cart').forEach(button => {
+            button.addEventListener('click', function() {
+                const productId = DOMPurify.sanitize(this.getAttribute('data-id'));
+                const qtySpan = document.getElementById(`edit-cart-qty-${productId}`);
+                if (!qtySpan) return;
+                
+                const quantity = parseInt(qtySpan.textContent) || 0;
+                if (quantity > 0) {
+                    editAddToCart(productId, quantity);
+                    qtySpan.textContent = '0';
+                }
+            });
+        });
+        
+        // Filtro de busca
+        const searchInput = document.getElementById('edit-sale-product-search');
+        if (searchInput) {
+            searchInput.addEventListener('input', filterEditSaleProducts);
+        }
+    }, 100);
+}
+
+function filterEditSaleProducts() {
+    const searchInput = document.getElementById('edit-sale-product-search');
+    if (!searchInput) return;
+    
+    const searchTerm = DOMPurify.sanitize(searchInput.value.toLowerCase());
+    const products = document.querySelectorAll('#edit-sale-products-list .cart-item');
+    
+    products.forEach(product => {
+        const productName = product.querySelector('.cart-item-info h4')?.textContent.toLowerCase() || '';
+        const productCode = product.querySelector('.code')?.textContent.toLowerCase() || '';
+        
+        const isVisible = productName.includes(searchTerm) || productCode.includes(searchTerm);
+        product.style.display = isVisible ? '' : 'none';
+    });
+}
+
+function editAddToCart(productId, quantity) {
+    const product = systemData.products.find(p => p.id === productId);
+    if (!product) return;
+    
+    const existingItemIndex = editingSaleData.cart.findIndex(item => item.productId === productId);
+    
+    if (existingItemIndex !== -1) {
+        const newQty = editingSaleData.cart[existingItemIndex].quantity + quantity;
+        editingSaleData.cart[existingItemIndex].quantity = newQty;
+    } else {
+        editingSaleData.cart.push({
+            productId: productId,
+            name: DOMPurify.sanitize(product.name),
+            price: product.sellingPrice,
+            quantity: quantity
+        });
+    }
+    
+    updateEditCartDisplay();
+    updateEditSaleSummary();
+    updateEditSaleProductsList(); // Atualizar lista para mostrar estoque atualizado
+}
+
+function updateEditCartDisplay() {
+    const cartContainer = document.getElementById('edit-sale-cart');
+    const emptyMessage = document.getElementById('edit-empty-cart-message');
+    
+    if (!cartContainer || !emptyMessage) return;
+    
+    if (editingSaleData.cart.length === 0) {
+        cartContainer.innerHTML = '';
+        emptyMessage.classList.remove('d-none');
+        return;
+    }
+    
+    emptyMessage.classList.add('d-none');
+    
+    let cartHTML = '<h4 style="margin-bottom: 15px;">Produtos na Venda</h4>';
+    
+    editingSaleData.cart.forEach((item, index) => {
+        const product = systemData.products.find(p => p.id === item.productId);
+        const subtotal = item.price * item.quantity;
+        
+        cartHTML += `
+            <div class="cart-item">
+                <div class="cart-item-info">
+                    <h4>${DOMPurify.sanitize(item.name)}</h4>
+                    <div class="code">${item.productId}</div>
+                    <div class="currency">${formatCurrency(item.price)} cada</div>
+                </div>
+                <div class="cart-item-quantity">
+                    <button class="quantity-btn edit-minus-cart" data-index="${index}">-</button>
+                    <span>${item.quantity}</span>
+                    <button class="quantity-btn edit-plus-cart" data-index="${index}">+</button>
+                    <button class="btn btn-small btn-danger edit-remove-from-cart" data-index="${index}" style="margin-left: 10px;">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+                <div class="text-right" style="min-width: 100px;">
+                    <strong class="currency">${formatCurrency(subtotal)}</strong>
+                </div>
+            </div>
+        `;
+    });
+    
+    cartContainer.innerHTML = DOMPurify.sanitize(cartHTML);
+    
+    // Adicionar event listeners para os botões do carrinho
+    setTimeout(() => {
+        document.querySelectorAll('.edit-plus-cart').forEach(button => {
+            button.addEventListener('click', function() {
+                const index = sanitizeNumber(parseInt(this.getAttribute('data-index')));
+                editUpdateCartItemQuantity(index, 1);
+            });
+        });
+        
+        document.querySelectorAll('.edit-minus-cart').forEach(button => {
+            button.addEventListener('click', function() {
+                const index = sanitizeNumber(parseInt(this.getAttribute('data-index')));
+                editUpdateCartItemQuantity(index, -1);
+            });
+        });
+        
+        document.querySelectorAll('.edit-remove-from-cart').forEach(button => {
+            button.addEventListener('click', function() {
+                const index = sanitizeNumber(parseInt(this.getAttribute('data-index')));
+                editRemoveFromCart(index);
+            });
+        });
+    }, 100);
+}
+
+function editUpdateCartItemQuantity(index, change) {
+    if (index < 0 || index >= editingSaleData.cart.length) return;
+    
+    const item = editingSaleData.cart[index];
+    const product = systemData.products.find(p => p.id === item.productId);
+    if (!product) return;
+    
+    const newQuantity = item.quantity + change;
+    
+    if (newQuantity < 1) {
+        editRemoveFromCart(index);
+        return;
+    }
+    
+    // Verificar estoque disponível (considerando itens já no carrinho)
+    const cartItem = editingSaleData.cart.find(cartItem => cartItem.productId === item.productId);
+    const currentCartQty = cartItem ? cartItem.quantity : 0;
+    const availableStock = product.stock + currentCartQty;
+    
+    if (newQuantity > availableStock) {
+        showAlert(`Estoque insuficiente! Disponível: ${availableStock}`, 'error');
+        return;
+    }
+    
+    item.quantity = newQuantity;
+    updateEditCartDisplay();
+    updateEditSaleSummary();
+    updateEditSaleProductsList();
+}
+
+function editRemoveFromCart(index) {
+    if (index >= 0 && index < editingSaleData.cart.length) {
+        editingSaleData.cart.splice(index, 1);
+        updateEditCartDisplay();
+        updateEditSaleSummary();
+        updateEditSaleProductsList();
+    }
+}
+
+function updateEditSaleSummary() {
+    const cartSubtotal = document.getElementById('edit-cart-subtotal');
+    const cartDiscount = document.getElementById('edit-cart-discount');
+    const cartTotal = document.getElementById('edit-cart-total');
+    
+    if (!cartSubtotal || !cartDiscount || !cartTotal) return;
+    
+    let subtotal = 0;
+    editingSaleData.cart.forEach(item => {
+        subtotal += item.price * item.quantity;
+    });
+    
+    const discountInput = document.getElementById('edit-sale-discount');
+    const discount = discountInput ? sanitizeNumber(parseFloat(discountInput.value) || 0) : 0;
+    
+    const paymentMethod = document.getElementById('edit-payment-method');
+    const method = paymentMethod ? paymentMethod.value : 'cash';
+    
+    let fees = 0;
+    
+    if (method === 'debit' || method === 'credit') {
+        const cardFeeInput = document.getElementById('edit-card-fee');
+        const cardFee = cardFeeInput ? sanitizeNumber(parseFloat(cardFeeInput.value) || 0) : 0;
+        fees = (subtotal - discount) * (cardFee / 100);
+        
+        const cartFeesRow = document.getElementById('edit-cart-fees-row');
+        const cartFees = document.getElementById('edit-cart-fees');
+        if (cartFeesRow) cartFeesRow.classList.remove('d-none');
+        if (cartFees) cartFees.textContent = formatCurrency(fees);
+    } else {
+        const cartFeesRow = document.getElementById('edit-cart-fees-row');
+        if (cartFeesRow) cartFeesRow.classList.add('d-none');
+    }
+    
+    const total = subtotal - discount + fees;
+    
+    cartSubtotal.textContent = formatCurrency(subtotal);
+    cartDiscount.textContent = formatCurrency(discount);
+    cartTotal.textContent = formatCurrency(total);
+}
+
+async function saveEditedSale() {
+    if (editingSaleData.cart.length === 0) {
+        showAlert('Adicione produtos à venda antes de salvar', 'error');
+        return;
+    }
+    
+    const attendantInput = document.getElementById('edit-attendant');
+    if (!attendantInput) {
+        showAlert('Campo atendente não encontrado', 'error');
+        return;
+    }
+    
+    const attendant = DOMPurify.sanitize(attendantInput.value.trim());
+    
+    if (!attendant) {
+        showAlert('Selecione o atendente', 'error');
+        return;
+    }
+    
+    if (attendant.length > 100) {
+        showAlert('Nome do atendente muito longo. Máximo 100 caracteres.', 'error');
+        return;
+    }
+    
+    let subtotal = 0;
+    editingSaleData.cart.forEach(item => {
+        subtotal += item.price * item.quantity;
+    });
+    
+    const discountInput = document.getElementById('edit-sale-discount');
+    const discount = discountInput ? sanitizeNumber(parseFloat(discountInput.value) || 0) : 0;
+    
+    const paymentMethod = document.getElementById('edit-payment-method');
+    const method = paymentMethod ? paymentMethod.value : 'cash';
+    
+    let cardFee = 0;
+    let cardType = "";
+    
+    if (method === 'debit' || method === 'credit') {
+        const cardFeeInput = document.getElementById('edit-card-fee');
+        cardFee = cardFeeInput ? sanitizeNumber(parseFloat(cardFeeInput.value) || 0) : 0;
+        cardType = method;
+    }
+    
+    const fees = (method === 'debit' || method === 'credit') ? 
+        (subtotal - discount) * (cardFee / 100) : 0;
+    const total = subtotal - discount + fees;
+    
+    // Verificar estoque para todos os produtos
+    for (const item of editingSaleData.cart) {
+        const product = systemData.products.find(p => p.id === item.productId);
+        if (!product) {
+            showAlert(`Produto ${DOMPurify.sanitize(item.name)} não encontrado`, 'error');
+            return;
+        }
+        
+        // Encontrar quantidade original deste produto na venda
+        const originalItem = editingSaleData.originalCart.find(oi => oi.productId === item.productId);
+        const originalQuantity = originalItem ? originalItem.quantity : 0;
+        
+        // Calcular diferença de quantidade
+        const quantityDifference = item.quantity - originalQuantity;
+        
+        // Verificar se há estoque suficiente para a diferença
+        if (product.stock < quantityDifference) {
+            const availableForIncrease = product.stock + originalQuantity;
+            showAlert(`Estoque insuficiente para ${DOMPurify.sanitize(item.name)}. Disponível para aumento: ${availableForIncrease}`, 'error');
+            return;
+        }
+    }
+    
+    try {
+        // 1. Restaurar estoque dos produtos originais
+        editingSaleData.originalCart.forEach(originalItem => {
+            const product = systemData.products.find(p => p.id === originalItem.productId);
+            if (product) {
+                product.stock += originalItem.quantity;
+            }
+        });
+        
+        // 2. Reduzir estoque dos novos produtos
+        editingSaleData.cart.forEach(item => {
+            const product = systemData.products.find(p => p.id === item.productId);
+            if (product) {
+                product.stock -= item.quantity;
+            }
+        });
+        
+        // 3. Atualizar a venda no sistema
+        const saleIndex = systemData.sales.findIndex(s => s.id === editingSaleData.saleId);
+        if (saleIndex !== -1) {
+            systemData.sales[saleIndex] = {
+                id: editingSaleData.saleId,
+                date: editingSaleData.originalSale.date, // Manter a data original
+                items: editingSaleData.cart.map(item => ({
+                    productId: item.productId,
+                    name: DOMPurify.sanitize(item.name),
+                    quantity: item.quantity,
+                    price: item.price
+                })),
+                subtotal: subtotal,
+                discount: discount,
+                paymentMethod: method,
+                cardType: cardType,
+                cardFee: cardFee,
+                fees: fees,
+                total: total,
+                attendant: attendant
+            };
+        }
+        
+        // 4. Salvar dados
+        await saveData();
+        
+        // 5. Limpar dados de edição
+        editingSaleData = {
+            saleId: null,
+            originalSale: null,
+            cart: [],
+            originalCart: []
+        };
+        
+        // 6. Fechar modal
+        hideModal('edit-sale-modal');
+        
+        // 7. Atualizar views
+        updateSalesList();
+        updateDashboard();
+        updateProductsList();
+        updateInventorySummary();
+        
+        showAlert('Venda atualizada com sucesso!', 'success');
+        
+    } catch (error) {
+        console.error('❌ Erro ao salvar venda editada:', error);
+        showAlert('Erro ao salvar as alterações. Tente novamente.', 'error');
+    }
+}
+
+// ============================================
+// 9. SISTEMA DE RECIBOS E IMPRESSÃO
 // ============================================
 
 function showReceipt(sale) {
@@ -2947,8 +3572,76 @@ function showReceipt(sale) {
     showModal('receipt-modal');
 }
 
+function printReceipt() {
+    const receiptContent = document.getElementById('receipt-content').innerHTML;
+    
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+        <!DOCTYPE html>
+        <html lang="pt-BR">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Recibo - Camarim Boutique</title>
+            <style>
+                body {
+                    font-family: 'Courier New', monospace;
+                    font-size: 12px;
+                    line-height: 1.4;
+                    margin: 0;
+                    padding: 10px;
+                    max-width: 400px;
+                    margin: 0 auto;
+                }
+                .receipt-header {
+                    text-align: center;
+                    margin-bottom: 15px;
+                    border-bottom: 1px dashed #000;
+                    padding-bottom: 10px;
+                }
+                .receipt-item {
+                    display: flex;
+                    justify-content: space-between;
+                    margin-bottom: 5px;
+                }
+                .receipt-total {
+                    border-top: 2px solid #000;
+                    margin-top: 10px;
+                    padding-top: 10px;
+                    font-weight: bold;
+                }
+                .receipt-footer {
+                    text-align: center;
+                    margin-top: 20px;
+                    font-size: 0.9em;
+                    color: #666;
+                }
+                @media print {
+                    body {
+                        margin: 0;
+                        padding: 0;
+                    }
+                }
+            </style>
+        </head>
+        <body>
+            ${receiptContent}
+            <script>
+                window.onload = function() {
+                    window.print();
+                    setTimeout(function() {
+                        window.close();
+                    }, 500);
+                }
+            <\/script>
+        </body>
+        </html>
+    `);
+    printWindow.document.close();
+}
+
 // ============================================
-// 9. SISTEMA DE RELATÓRIOS EM PDF
+// 10. SISTEMA DE RELATÓRIOS EM PDF
 // ============================================
 
 function generatePDFReport() {
@@ -2983,7 +3676,7 @@ function generatePDFReport() {
 }
 
 // ============================================
-// 10. FUNÇÕES DE APOIO PARA VENDAS
+// 11. FUNÇÕES DE APOIO PARA VENDAS
 // ============================================
 
 function setupNewSale() {
@@ -3268,7 +3961,7 @@ function updateSaleSummary() {
 }
 
 // ============================================
-// 11. GERENCIAMENTO DE PRODUTOS
+// 12. GERENCIAMENTO DE PRODUTOS
 // ============================================
 
 function updateProductCalculations() {
@@ -3627,7 +4320,7 @@ function updateProductsList() {
         editBtn.appendChild(editIcon);
         actionsCell.appendChild(editBtn);
         
-        // Botão Editar Estoque (SUBSTITUI o botão Editar Apenas Preço)
+        // Botão Editar Estoque
         const editStockBtn = document.createElement('button');
         editStockBtn.className = 'btn btn-small btn-info edit-stock';
         editStockBtn.setAttribute('data-id', product.id);
@@ -3842,7 +4535,7 @@ async function deleteProduct(productId) {
 }
 
 // ============================================
-// 12. LISTA DE VENDAS
+// 13. LISTA DE VENDAS (ATUALIZADA COM EDIÇÃO)
 // ============================================
 
 function updateSalesList() {
@@ -3934,10 +4627,21 @@ function updateSalesList() {
         const viewBtn = document.createElement('button');
         viewBtn.className = 'btn btn-small btn-info view-sale';
         viewBtn.setAttribute('data-id', sale.id);
+        viewBtn.setAttribute('title', 'Visualizar Venda');
         const viewIcon = document.createElement('i');
         viewIcon.className = 'fas fa-eye';
         viewBtn.appendChild(viewIcon);
         actionsCell.appendChild(viewBtn);
+        
+        // Botão Editar (NOVO)
+        const editBtn = document.createElement('button');
+        editBtn.className = 'btn btn-small btn-warning edit-sale-btn';
+        editBtn.setAttribute('data-id', sale.id);
+        editBtn.setAttribute('title', 'Editar Venda');
+        const editIcon = document.createElement('i');
+        editIcon.className = 'fas fa-edit';
+        editBtn.appendChild(editIcon);
+        actionsCell.appendChild(editBtn);
         
         row.appendChild(actionsCell);
         salesBody.appendChild(row);
@@ -3949,6 +4653,14 @@ function updateSalesList() {
             button.addEventListener('click', function() {
                 const saleId = DOMPurify.sanitize(this.getAttribute('data-id'));
                 viewSaleDetails(saleId);
+            });
+        });
+        
+        // Adicionar event listener para o botão de editar (NOVO)
+        document.querySelectorAll('.edit-sale-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const saleId = DOMPurify.sanitize(this.getAttribute('data-id'));
+                editSale(saleId);
             });
         });
     }, 100);
@@ -4062,7 +4774,7 @@ function viewSaleDetails(saleId) {
 }
 
 // ============================================
-// 13. DASHBOARD E RELATÓRIOS
+// 14. DASHBOARD E RELATÓRIOS
 // ============================================
 
 function updateDashboard() {
@@ -4322,7 +5034,7 @@ function updateTopProducts() {
 }
 
 // ============================================
-// 14. GRÁFICOS
+// 15. GRÁFICOS
 // ============================================
 
 function updateMonthlySalesChart() {
@@ -4530,7 +5242,7 @@ function updateCategoryChart() {
 }
 
 // ============================================
-// 15. CONFIGURAÇÕES
+// 16. CONFIGURAÇÕES
 // ============================================
 
 async function saveSettings(e) {
@@ -4562,7 +5274,7 @@ async function saveSettings(e) {
 }
 
 // ============================================
-// 16. EXPORTAÇÃO E IMPORTAÇÃO DE DADOS
+// 17. EXPORTAÇÃO E IMPORTAÇÃO DE DADOS
 // ============================================
 
 function exportData(type = null) {
@@ -4756,7 +5468,7 @@ async function clearAllData() {
 }
 
 // ============================================
-// 17. FUNÇÕES AUXILIARES DO SISTEMA DE VENDAS
+// 18. FUNÇÕES AUXILIARES DO SISTEMA DE VENDAS
 // ============================================
 
 function showPixPayment(sale) {
@@ -4841,76 +5553,8 @@ function confirmPixPayment() {
     }
 }
 
-function printReceipt() {
-    const receiptContent = document.getElementById('receipt-content').innerHTML;
-    
-    const printWindow = window.open('', '_blank');
-    printWindow.document.write(`
-        <!DOCTYPE html>
-        <html lang="pt-BR">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Recibo - Camarim Boutique</title>
-            <style>
-                body {
-                    font-family: 'Courier New', monospace;
-                    font-size: 12px;
-                    line-height: 1.4;
-                    margin: 0;
-                    padding: 10px;
-                    max-width: 400px;
-                    margin: 0 auto;
-                }
-                .receipt-header {
-                    text-align: center;
-                    margin-bottom: 15px;
-                    border-bottom: 1px dashed #000;
-                    padding-bottom: 10px;
-                }
-                .receipt-item {
-                    display: flex;
-                    justify-content: space-between;
-                    margin-bottom: 5px;
-                }
-                .receipt-total {
-                    border-top: 2px solid #000;
-                    margin-top: 10px;
-                    padding-top: 10px;
-                    font-weight: bold;
-                }
-                .receipt-footer {
-                    text-align: center;
-                    margin-top: 20px;
-                    font-size: 0.9em;
-                    color: #666;
-                }
-                @media print {
-                    body {
-                        margin: 0;
-                        padding: 0;
-                    }
-                }
-            </style>
-        </head>
-        <body>
-            ${receiptContent}
-            <script>
-                window.onload = function() {
-                    window.print();
-                    setTimeout(function() {
-                        window.close();
-                    }, 500);
-                }
-            <\/script>
-        </body>
-        </html>
-    `);
-    printWindow.document.close();
-}
-
 // ============================================
-// 18. BANCO DE DADOS
+// 19. BANCO DE DADOS
 // ============================================
 
 function showDatabaseStatus() {
@@ -5017,7 +5661,7 @@ async function updateDatabaseInfo() {
 }
 
 // ============================================
-// 19. UTILITÁRIOS
+// 20. UTILITÁRIOS
 // ============================================
 
 function showModal(modalId) {
