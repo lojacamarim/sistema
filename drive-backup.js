@@ -7,7 +7,7 @@ let driveBackup = {
     accessToken: null,
     // SUBSTITUA ESTES VALORES PELOS SEUS
     clientId: '821978818510-ia36jn3fn9ucqgl27jmtbaqeee9kujmp.apps.googleusercontent.com',
-    apiKey: 'SUA_API_KEY_AQUI',
+    apiKey: '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',
     discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
     scope: 'https://www.googleapis.com/auth/drive.file',
     folderName: 'Camarim-Backup-System',
