@@ -6,7 +6,7 @@ let driveBackup = {
     isInitialized: false,
     accessToken: null,
     // SUBSTITUA ESTES VALORES PELOS SEUS
-    clientId: 'SEU_CLIENT_ID_AQUI.apps.googleusercontent.com',
+    clientId: '821978818510-ia36jn3fn9ucqgl27jmtbaqeee9kujmp.apps.googleusercontent.com',
     apiKey: 'SUA_API_KEY_AQUI',
     discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
     scope: 'https://www.googleapis.com/auth/drive.file',
