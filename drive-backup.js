@@ -1,291 +1,224 @@
 // ============================================
-// SISTEMA DE BACKUP NO GOOGLE DRIVE (VERSÃO REVISADA)
+// SISTEMA DE BACKUP NO GOOGLE DRIVE - CAMARIM BOUTIQUE
 // ============================================
 
-let driveBackup = {
-    isInitialized: false,
-    accessToken: null,
-    // SUBSTITUA ESTES VALORES PELOS SEUS
-    clientId: '821978818510-oo69bs0uln83avvst0obpjmq9amgtg8c.apps.googleusercontent.com',
-    apiKey: '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',
-    discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
+// 🔒 IMPORTANTE: Substitua estas credenciais pelas suas do Google Cloud Console
+// Acesse: https://console.cloud.google.com/ > Seu projeto > APIs & Serviços > Credenciais
+
+const DRIVE_CONFIG = {
+    clientId: 'SEU_CLIENT_ID_AQUI.apps.googleusercontent.com', // 👈 Substituir
+    apiKey: 'SUA_API_KEY_AQUI', // 👈 Substituir
     scope: 'https://www.googleapis.com/auth/drive.file',
-    folderName: 'Camarim-Backup-System',
-    folderId: null,
-    backups: [],
-    
-    // Inicializar cliente Google API
-    init: async function() {
-        console.log('🔄 Inicializando Google Drive Backup System...');
-        
-        try {
-            // Verificar se já está inicializado
-            if (this.isInitialized) {
-                console.log('✅ Já inicializado');
-                return true;
-            }
-            
-            // Carregar Google API se necessário
-            if (!window.gapi) {
-                console.log('📦 Carregando Google API...');
-                await this.loadGoogleAPI();
-            }
-            
-            // Inicializar cliente
-            console.log('🔧 Inicializando cliente Google...');
-            await gapi.client.init({
-                apiKey: this.apiKey,
-                clientId: this.clientId,
-                discoveryDocs: this.discoveryDocs,
-                scope: this.scope
-            });
-            
-            console.log('✅ Cliente Google inicializado');
-            
-            // Verificar autenticação existente
-            const authInstance = gapi.auth2.getAuthInstance();
-            if (authInstance && authInstance.isSignedIn.get()) {
-                console.log('🔑 Sessão existente encontrada');
-                this.accessToken = authInstance.currentUser.get().getAuthResponse().access_token;
-                await this.setupDriveFolder();
-                this.isInitialized = true;
-                console.log('✅ Google Drive conectado automaticamente');
-            } else {
-                console.log('ℹ️ Nenhuma sessão ativa. Usuário precisa fazer login.');
-            }
-            
-            return true;
-        } catch (error) {
-            console.error('❌ Erro na inicialização:', error);
-            console.error('Detalhes:', error.message, error.stack);
-            return false;
+    discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
+    folderName: 'Camarim-Backup-System'
+};
+
+// Sistema principal
+class DriveBackupSystem {
+    constructor() {
+        this.isInitialized = false;
+        this.accessToken = null;
+        this.folderId = null;
+        this.backups = [];
+        this.userEmail = null;
+        this.initPromise = null;
+    }
+
+    // Inicialização única
+    async initialize() {
+        if (this.initPromise) {
+            return this.initPromise;
         }
-    },
-    
-    // Carregar Google API
-    loadGoogleAPI: function() {
+
+        this.initPromise = (async () => {
+            console.log('🚀 Inicializando Google Drive Backup...');
+
+            try {
+                // 1. Carregar Google API
+                await this.loadGoogleAPI();
+                
+                // 2. Inicializar cliente
+                await gapi.client.init({
+                    apiKey: DRIVE_CONFIG.apiKey,
+                    clientId: DRIVE_CONFIG.clientId,
+                    discoveryDocs: DRIVE_CONFIG.discoveryDocs,
+                    scope: DRIVE_CONFIG.scope
+                });
+
+                console.log('✅ Google API inicializada');
+
+                // 3. Verificar login existente
+                const authInstance = gapi.auth2.getAuthInstance();
+                if (authInstance.isSignedIn.get()) {
+                    await this.handleSignedIn(authInstance.currentUser.get());
+                }
+
+                this.isInitialized = true;
+                return true;
+
+            } catch (error) {
+                console.error('❌ Erro na inicialização:', error);
+                this.isInitialized = false;
+                throw error;
+            }
+        })();
+
+        return this.initPromise;
+    }
+
+    // Carregar Google API dinamicamente
+    loadGoogleAPI() {
         return new Promise((resolve, reject) => {
-            // Verificar se já está carregando
-            if (window.gapiLoading) {
-                const checkInterval = setInterval(() => {
-                    if (window.gapi) {
-                        clearInterval(checkInterval);
-                        resolve();
-                    }
-                }, 100);
+            if (window.gapi && window.gapi.load) {
+                console.log('📦 Google API já carregada');
+                resolve();
                 return;
             }
-            
-            window.gapiLoading = true;
-            
+
+            console.log('📦 Carregando Google API...');
             const script = document.createElement('script');
             script.src = 'https://apis.google.com/js/api.js';
+            script.async = true;
+            script.defer = true;
             
             script.onload = () => {
                 console.log('✅ Google API carregada');
-                window.gapiLoading = false;
-                resolve();
+                gapi.load('client:auth2', {
+                    callback: resolve,
+                    onerror: reject,
+                    timeout: 10000
+                });
             };
-            
-            script.onerror = (error) => {
-                console.error('❌ Falha ao carregar Google API');
-                window.gapiLoading = false;
+
+            script.onerror = () => {
                 reject(new Error('Falha ao carregar Google API'));
             };
-            
-            script.onreadystatechange = () => {
-                if (script.readyState === 'complete') {
-                    script.onload();
-                }
-            };
-            
+
             document.head.appendChild(script);
         });
-    },
-    
-    // Fazer login no Google Drive
-    login: async function() {
-        console.log('🔑 Iniciando processo de login...');
-        
+    }
+
+    // Login no Google Drive
+    async login() {
         try {
-            // Verificar inicialização
-            if (!window.gapi || !window.gapi.auth2) {
-                console.log('🔄 Re-inicializando cliente...');
-                await this.init();
-            }
+            console.log('🔑 Iniciando login...');
             
+            if (!this.isInitialized) {
+                await this.initialize();
+            }
+
             const authInstance = gapi.auth2.getAuthInstance();
-            
-            if (!authInstance) {
-                throw new Error('Instância de autenticação não disponível');
-            }
-            
-            console.log('👤 Solicitando login...');
             const user = await authInstance.signIn({
                 prompt: 'select_account'
             });
+
+            await this.handleSignedIn(user);
             
-            console.log('✅ Login realizado');
-            this.accessToken = user.getAuthResponse().access_token;
-            
-            console.log('📁 Configurando pasta...');
-            await this.setupDriveFolder();
-            this.isInitialized = true;
-            
-            console.log('✅ Login Google Drive realizado com sucesso');
+            console.log('✅ Login realizado com sucesso');
             return true;
+
         } catch (error) {
             console.error('❌ Erro no login:', error);
             
-            // Tentativa alternativa
-            try {
-                console.log('🔄 Tentando método alternativo...');
-                return await this.alternativeLogin();
-            } catch (altError) {
-                console.error('❌ Método alternativo também falhou:', altError);
-                return false;
+            // Verificar tipo de erro
+            if (error.error === 'popup_closed_by_user') {
+                throw new Error('Login cancelado pelo usuário');
+            } else if (error.error === 'access_denied') {
+                throw new Error('Acesso negado. Permita as permissões solicitadas.');
+            } else {
+                throw new Error(`Falha na conexão: ${error.error || error.message}`);
             }
         }
-    },
-    
-    // Método alternativo de login
-    alternativeLogin: function() {
-        return new Promise((resolve, reject) => {
-            // Método manual usando popup OAuth2
-            const authUrl = 'https://accounts.google.com/o/oauth2/auth?' +
-                'client_id=' + encodeURIComponent(this.clientId) +
-                '&redirect_uri=' + encodeURIComponent(window.location.origin + window.location.pathname) +
-                '&response_type=token' +
-                '&scope=' + encodeURIComponent(this.scope) +
-                '&prompt=consent';
+    }
+
+    // Logout
+    async logout() {
+        try {
+            const authInstance = gapi.auth2.getAuthInstance();
+            await authInstance.signOut();
             
-            console.log('🔗 URL de autenticação:', authUrl);
+            this.accessToken = null;
+            this.folderId = null;
+            this.userEmail = null;
+            this.backups = [];
             
-            // Abrir popup manual
-            const width = 500;
-            const height = 600;
-            const left = window.screenX + (window.outerWidth - width) / 2;
-            const top = window.screenY + (window.outerHeight - height) / 2;
-            
-            const popup = window.open(
-                authUrl,
-                'Google Login',
-                `width=${width},height=${height},left=${left},top=${top}`
-            );
-            
-            if (!popup) {
-                reject(new Error('Popup bloqueado. Permita popups para este site.'));
-                return;
-            }
-            
-            // Verificar popup periodicamente
-            const checkPopup = setInterval(() => {
-                if (popup.closed) {
-                    clearInterval(checkPopup);
-                    reject(new Error('Popup fechado pelo usuário'));
-                }
-                
-                try {
-                    const popupUrl = popup.location.href;
-                    
-                    if (popupUrl.includes('access_token=')) {
-                        clearInterval(checkPopup);
-                        popup.close();
-                        
-                        // Extrair token da URL
-                        const hash = new URL(popupUrl).hash.substring(1);
-                        const params = new URLSearchParams(hash);
-                        const token = params.get('access_token');
-                        
-                        if (token) {
-                            this.accessToken = token;
-                            this.isInitialized = true;
-                            resolve(true);
-                        } else {
-                            reject(new Error('Token não encontrado na URL'));
-                        }
-                    }
-                } catch (e) {
-                    // Ignorar erros de cross-origin
-                }
-            }, 100);
-        });
-    },
-    
-    // Criar ou obter pasta de backups
-    setupDriveFolder: async function() {
+            console.log('✅ Logout realizado');
+            return true;
+        } catch (error) {
+            console.error('❌ Erro no logout:', error);
+            throw error;
+        }
+    }
+
+    // Manipular usuário logado
+    async handleSignedIn(user) {
+        const authResponse = user.getAuthResponse();
+        this.accessToken = authResponse.access_token;
+        this.userEmail = user.getBasicProfile().getEmail();
+        
+        console.log(`👤 Usuário: ${this.userEmail}`);
+        
+        // Configurar pasta de backups
+        await this.setupBackupFolder();
+        
+        // Carregar backups existentes
+        await this.listBackups();
+    }
+
+    // Criar/obter pasta de backups
+    async setupBackupFolder() {
         try {
             console.log('📁 Configurando pasta de backups...');
-            
-            if (!this.accessToken) {
-                throw new Error('Token de acesso não disponível');
-            }
-            
-            // Primeiro, verificar se temos permissão para acessar o Drive
-            try {
-                await gapi.client.drive.about.get({
-                    fields: 'user'
-                });
-                console.log('✅ Permissão do Drive confirmada');
-            } catch (error) {
-                console.error('❌ Sem permissão para acessar Drive:', error);
-                throw error;
-            }
-            
-            // Procurar pasta existente
-            console.log('🔍 Procurando pasta existente...');
+
+            // Verificar se a pasta já existe
             const response = await gapi.client.drive.files.list({
-                q: `name='${this.folderName}' and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+                q: `name='${DRIVE_CONFIG.folderName}' and mimeType='application/vnd.google-apps.folder' and trashed=false`,
                 fields: 'files(id, name)',
                 spaces: 'drive'
             });
-            
+
             if (response.result.files.length > 0) {
                 this.folderId = response.result.files[0].id;
-                console.log(`✅ Pasta encontrada: ${this.folderId}`);
+                console.log(`✅ Pasta existente: ${this.folderId}`);
             } else {
-                console.log('📝 Criando nova pasta...');
                 // Criar nova pasta
                 const createResponse = await gapi.client.drive.files.create({
                     resource: {
-                        name: this.folderName,
+                        name: DRIVE_CONFIG.folderName,
                         mimeType: 'application/vnd.google-apps.folder',
                         description: 'Backups do Sistema Camarim Boutique'
                     },
                     fields: 'id'
                 });
-                
+
                 this.folderId = createResponse.result.id;
                 console.log(`✅ Nova pasta criada: ${this.folderId}`);
             }
-            
+
             return this.folderId;
+
         } catch (error) {
             console.error('❌ Erro ao configurar pasta:', error);
-            console.error('Detalhes:', error.result ? error.result.error : error.message);
             throw error;
         }
-    },
-    
-    // Listar todos os backups disponíveis
-    listBackups: async function() {
-        console.log('📋 Listando backups...');
-        
-        if (!this.isInitialized || !this.folderId) {
-            throw new Error('Drive não inicializado. Faça login primeiro.');
+    }
+
+    // Listar backups
+    async listBackups() {
+        if (!this.folderId) {
+            throw new Error('Pasta não configurada');
         }
-        
+
         try {
+            console.log('📋 Listando backups...');
+
             const response = await gapi.client.drive.files.list({
-                q: `'${this.folderId}' in parents and name contains 'camarim-backup' and mimeType='application/json' and trashed=false`,
+                q: `'${this.folderId}' in parents and name contains 'backup-camarim' and mimeType='application/json' and trashed=false`,
                 fields: 'files(id, name, createdTime, modifiedTime, size, description)',
                 orderBy: 'createdTime desc',
-                pageSize: 50,
-                spaces: 'drive'
+                pageSize: 20
             });
-            
-            console.log(`📊 Resposta da API: ${response.result.files?.length || 0} arquivos`);
-            
+
             this.backups = (response.result.files || []).map(file => ({
                 id: file.id,
                 name: file.name,
@@ -295,505 +228,846 @@ let driveBackup = {
                 size: parseInt(file.size) || 0,
                 readableSize: this.formatFileSize(parseInt(file.size) || 0)
             }));
-            
-            console.log(`📦 ${this.backups.length} backups encontrados`);
+
+            console.log(`✅ ${this.backups.length} backups encontrados`);
             return this.backups;
+
         } catch (error) {
             console.error('❌ Erro ao listar backups:', error);
-            console.error('Detalhes:', error.result ? error.result.error : error.message);
-            
-            // Tentar método alternativo
-            return await this.listBackupsAlternative();
-        }
-    },
-    
-    // Método alternativo para listar backups
-    listBackupsAlternative: async function() {
-        console.log('🔄 Usando método alternativo para listar backups...');
-        
-        try {
-            // Usar fetch API diretamente
-            const response = await fetch(
-                `https://www.googleapis.com/drive/v3/files?q='${this.folderId}'+in+parents+and+name+contains+'camarim-backup'+and+mimeType='application/json'+and+trashed=false&fields=files(id,name,createdTime,modifiedTime,size)&orderBy=createdTime+desc`,
-                {
-                    headers: {
-                        'Authorization': `Bearer ${this.accessToken}`
-                    }
-                }
-            );
-            
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-            
-            const data = await response.json();
-            this.backups = (data.files || []).map(file => ({
-                id: file.id,
-                name: file.name,
-                createdTime: new Date(file.createdTime),
-                modifiedTime: new Date(file.modifiedTime),
-                size: parseInt(file.size) || 0,
-                readableSize: this.formatFileSize(parseInt(file.size) || 0)
-            }));
-            
-            console.log(`📦 ${this.backups.length} backups encontrados (método alternativo)`);
-            return this.backups;
-        } catch (error) {
-            console.error('❌ Método alternativo também falhou:', error);
             throw error;
         }
-    },
-    
-    // Criar novo backup (versão simplificada)
-    createBackup: async function(data, description = '') {
-        console.log('💾 Criando backup...');
-        
-        if (!this.isInitialized || !this.folderId) {
-            throw new Error('Drive não inicializado. Faça login primeiro.');
+    }
+
+    // Criar novo backup
+    async createBackup(data, description = '') {
+        if (!this.folderId) {
+            throw new Error('Pasta não configurada');
         }
-        
+
         try {
-            const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
-            const fileName = `camarim-backup-${timestamp}.json`;
+            console.log('💾 Criando backup...');
+
+            // Gerar nome único
+            const timestamp = new Date().toISOString()
+                .replace(/[:.]/g, '-')
+                .replace('T', '_')
+                .slice(0, 19);
             
-            // Preparar dados
+            const fileName = `backup-camarim-${timestamp}.json`;
+
+            // Adicionar metadados
             const backupData = {
                 ...data,
                 _backupMetadata: {
                     created: new Date().toISOString(),
-                    system: 'Camarim Boutique Management System',
+                    system: 'Camarim Boutique',
                     version: '1.0',
                     description: description,
+                    user: this.userEmail,
                     productCount: data.products?.length || 0,
                     saleCount: data.sales?.length || 0
                 }
             };
-            
+
             const fileContent = JSON.stringify(backupData, null, 2);
-            
-            // Método simples usando fetch
-            const metadata = {
-                name: fileName,
-                mimeType: 'application/json',
-                parents: [this.folderId],
-                description: description || `Backup Camarim ${timestamp}`
-            };
-            
-            const form = new FormData();
-            form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-            form.append('file', new Blob([fileContent], { type: 'application/json' }));
-            
-            const response = await fetch(
-                'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',
-                {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${this.accessToken}`
-                    },
-                    body: form
-                }
-            );
-            
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`Upload falhou: ${response.status} - ${errorText}`);
-            }
-            
-            const result = await response.json();
-            console.log('✅ Backup criado:', result.name);
-            
+
+            // Criar arquivo
+            const response = await gapi.client.drive.files.create({
+                resource: {
+                    name: fileName,
+                    mimeType: 'application/json',
+                    parents: [this.folderId],
+                    description: description || `Backup automático ${timestamp}`
+                },
+                media: {
+                    mimeType: 'application/json',
+                    body: fileContent
+                },
+                fields: 'id, name, createdTime'
+            });
+
+            console.log(`✅ Backup criado: ${response.result.name}`);
+
             // Atualizar lista
             await this.listBackups();
-            
+
             return {
                 success: true,
-                fileId: result.id,
-                fileName: result.name
+                id: response.result.id,
+                name: response.result.name,
+                createdTime: new Date(response.result.createdTime)
             };
+
         } catch (error) {
             console.error('❌ Erro ao criar backup:', error);
             throw error;
         }
-    },
-    
-    // Restaurar backup (versão simplificada)
-    restoreBackup: async function(fileId) {
-        console.log(`🔄 Restaurando backup ${fileId}...`);
-        
+    }
+
+    // Restaurar backup
+    async restoreBackup(fileId) {
         try {
-            // Usar fetch API
-            const response = await fetch(
-                `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
-                {
-                    headers: {
-                        'Authorization': `Bearer ${this.accessToken}`,
-                        'Accept': 'application/json'
-                    }
-                }
-            );
-            
-            if (!response.ok) {
-                throw new Error(`Falha ao baixar: ${response.status}`);
-            }
-            
-            const backupData = await response.json();
-            
-            // Validar dados
+            console.log(`🔄 Restaurando backup ${fileId}...`);
+
+            // Baixar arquivo
+            const response = await gapi.client.drive.files.get({
+                fileId: fileId,
+                alt: 'media'
+            });
+
+            const backupData = response.result;
+
+            // Validar estrutura
             if (!backupData.products || !Array.isArray(backupData.products)) {
                 throw new Error('Arquivo de backup inválido');
             }
-            
-            console.log(`✅ Backup carregado: ${backupData.products.length} produtos`);
-            
-            // Limpar metadados
-            if (backupData._backupMetadata) {
-                delete backupData._backupMetadata;
-            }
-            
+
+            // Remover metadados
+            delete backupData._backupMetadata;
+
+            console.log(`✅ Backup restaurado: ${backupData.products.length} produtos`);
+
             return backupData;
+
         } catch (error) {
-            console.error('❌ Erro ao restaurar:', error);
+            console.error('❌ Erro ao restaurar backup:', error);
             throw error;
         }
-    },
-    
+    }
+
+    // Excluir backup
+    async deleteBackup(fileId) {
+        try {
+            await gapi.client.drive.files.delete({
+                fileId: fileId
+            });
+
+            console.log('🗑️ Backup excluído');
+
+            // Atualizar lista
+            await this.listBackups();
+
+            return true;
+
+        } catch (error) {
+            console.error('❌ Erro ao excluir backup:', error);
+            throw error;
+        }
+    }
+
+    // Obter informações de armazenamento
+    async getStorageInfo() {
+        try {
+            const response = await gapi.client.drive.about.get({
+                fields: 'storageQuota, user'
+            });
+
+            const quota = response.result.storageQuota;
+            const total = parseInt(quota.limit) || 0;
+            const used = parseInt(quota.usage) || 0;
+            const inDrive = parseInt(quota.usageInDrive) || 0;
+
+            return {
+                total,
+                used,
+                inDrive,
+                free: total - used,
+                usedPercentage: total > 0 ? (used / total * 100).toFixed(1) : 0
+            };
+
+        } catch (error) {
+            console.error('❌ Erro ao obter informações de armazenamento:', error);
+            return null;
+        }
+    }
+
     // Utilitários
-    formatFileSize: function(bytes) {
+    formatFileSize(bytes) {
         if (bytes === 0) return '0 Bytes';
         const k = 1024;
         const sizes = ['Bytes', 'KB', 'MB', 'GB'];
         const i = Math.floor(Math.log(bytes) / Math.log(k));
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-    },
-    
-    getStatus: function() {
+    }
+
+    getStatus() {
         return {
             isInitialized: this.isInitialized,
             isLoggedIn: this.accessToken !== null,
+            userEmail: this.userEmail,
             folderId: this.folderId,
             backupsCount: this.backups.length,
-            clientIdSet: this.clientId !== 'YOUR_CLIENT_ID.apps.googleusercontent.com',
-            apiKeySet: this.apiKey !== 'YOUR_API_KEY'
+            hasValidConfig: DRIVE_CONFIG.clientId !== 'SEU_CLIENT_ID_AQUI.apps.googleusercontent.com'
         };
     }
-};
+}
 
 // ============================================
-// INTERFACE DO USUÁRIO (VERSÃO SIMPLIFICADA)
+// INTEGRAÇÃO COM O SISTEMA CAMARIM
 // ============================================
 
+// Instância global
+const driveBackup = new DriveBackupSystem();
 window.CamarimDriveBackup = driveBackup;
 
-// Inicializar quando o DOM carregar
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('🚀 Inicializando Drive Backup...');
-    
-    // Aguardar sistema principal carregar
-    setTimeout(async () => {
+// Interface do usuário
+class DriveBackupUI {
+    constructor() {
+        this.modal = null;
+        this.initialized = false;
+    }
+
+    // Inicializar interface
+    async initialize() {
+        if (this.initialized) return;
+
+        console.log('🎨 Inicializando interface do Drive Backup...');
+
+        // Adicionar botão no header
+        this.addHeaderButton();
+
+        // Adicionar estilos
+        this.addStyles();
+
+        // Inicializar sistema
         try {
-            const initialized = await driveBackup.init();
-            
-            if (initialized && driveBackup.isInitialized) {
-                console.log('✅ Drive Backup pronto');
-                updateUI();
-            } else {
-                console.log('⚠️ Drive Backup não inicializado');
-                showLoginButton();
-            }
+            await driveBackup.initialize();
+            this.updateUI();
         } catch (error) {
-            console.error('❌ Erro na inicialização:', error);
-            showErrorUI();
+            console.warn('⚠️ Drive Backup não disponível:', error.message);
         }
-    }, 2000);
-});
 
-// Atualizar interface
-function updateUI() {
-    console.log('🎨 Atualizando interface...');
-    
-    // Adicionar ou atualizar botão no header
-    let backupBtn = document.getElementById('drive-backup-btn');
-    if (!backupBtn) {
-        backupBtn = document.createElement('button');
-        backupBtn.id = 'drive-backup-btn';
-        backupBtn.className = 'btn btn-success';
-        backupBtn.innerHTML = '<i class="fab fa-google-drive"></i> Drive';
-        backupBtn.title = 'Google Drive Backup';
-        backupBtn.style.marginLeft = '10px';
-        backupBtn.addEventListener('click', showDriveModal);
-        
-        const headerButtons = document.querySelector('.header-buttons');
-        if (headerButtons) {
-            headerButtons.appendChild(backupBtn);
-        }
+        this.initialized = true;
     }
-    
-    backupBtn.innerHTML = '<i class="fab fa-google-drive"></i> Drive Conectado';
-    backupBtn.className = 'btn btn-success';
-}
 
-// Mostrar botão de login
-function showLoginButton() {
-    console.log('👤 Mostrando botão de login...');
-    
-    let backupBtn = document.getElementById('drive-backup-btn');
-    if (!backupBtn) {
-        backupBtn = document.createElement('button');
-        backupBtn.id = 'drive-backup-btn';
-        backupBtn.className = 'btn btn-warning';
-        backupBtn.innerHTML = '<i class="fab fa-google-drive"></i> Conectar Drive';
-        backupBtn.title = 'Conectar Google Drive';
-        backupBtn.style.marginLeft = '10px';
-        backupBtn.addEventListener('click', async function() {
-            try {
-                backupBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Conectando...';
-                backupBtn.disabled = true;
-                
-                const success = await driveBackup.login();
-                if (success) {
-                    updateUI();
-                    showDriveModal();
-                } else {
-                    backupBtn.innerHTML = '<i class="fab fa-google-drive"></i> Tentar Novamente';
-                    backupBtn.disabled = false;
-                    alert('Falha na conexão. Verifique o console para detalhes.');
-                }
-            } catch (error) {
-                backupBtn.innerHTML = '<i class="fab fa-google-drive"></i> Tentar Novamente';
-                backupBtn.disabled = false;
-                console.error('Erro:', error);
+    // Adicionar botão no header
+    addHeaderButton() {
+        // Aguardar header carregar
+        const checkHeader = setInterval(() => {
+            const headerButtons = document.querySelector('.header-buttons');
+            if (headerButtons && !document.getElementById('drive-backup-header-btn')) {
+                clearInterval(checkHeader);
+
+                const button = document.createElement('button');
+                button.id = 'drive-backup-header-btn';
+                button.className = 'btn btn-primary';
+                button.innerHTML = '<i class="fab fa-google-drive"></i> Drive';
+                button.title = 'Google Drive Backup';
+                button.style.marginLeft = '10px';
+
+                button.addEventListener('click', () => this.showMainModal());
+
+                headerButtons.appendChild(button);
+                this.headerButton = button;
             }
-        });
-        
-        const headerButtons = document.querySelector('.header-buttons');
-        if (headerButtons) {
-            headerButtons.appendChild(backupBtn);
+        }, 500);
+    }
+
+    // Atualizar interface baseada no status
+    updateUI() {
+        if (!this.headerButton) return;
+
+        const status = driveBackup.getStatus();
+
+        if (status.isLoggedIn) {
+            this.headerButton.className = 'btn btn-success';
+            this.headerButton.innerHTML = `<i class="fab fa-google-drive"></i> ${status.userEmail?.split('@')[0] || 'Drive'}`;
+        } else {
+            this.headerButton.className = 'btn btn-primary';
+            this.headerButton.innerHTML = '<i class="fab fa-google-drive"></i> Drive';
         }
     }
-}
 
-// Mostrar UI de erro
-function showErrorUI() {
-    console.log('❌ Mostrando UI de erro...');
-    
-    let backupBtn = document.getElementById('drive-backup-btn');
-    if (!backupBtn) {
-        backupBtn = document.createElement('button');
-        backupBtn.id = 'drive-backup-btn';
-        backupBtn.className = 'btn btn-danger';
-        backupBtn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Drive Indisponível';
-        backupBtn.title = 'Google Drive não disponível';
-        backupBtn.style.marginLeft = '10px';
-        
-        const headerButtons = document.querySelector('.header-buttons');
-        if (headerButtons) {
-            headerButtons.appendChild(backupBtn);
+    // Mostrar modal principal
+    async showMainModal() {
+        // Criar modal
+        if (!this.modal) {
+            this.createModal();
         }
-    }
-}
 
-// Modal simplificado
-function showDriveModal() {
-    if (!driveBackup.isInitialized) {
-        alert('Por favor, conecte ao Google Drive primeiro.');
-        return;
+        // Atualizar conteúdo
+        await this.updateModalContent();
+
+        // Mostrar modal
+        this.modal.classList.add('active');
     }
-    
-    // Criar modal simples
-    const modalId = 'simple-drive-modal';
-    let modal = document.getElementById(modalId);
-    
-    if (!modal) {
-        modal = document.createElement('div');
-        modal.id = modalId;
-        modal.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.5);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 10000;
-        `;
+
+    // Criar modal
+    createModal() {
+        this.modal = document.createElement('div');
+        this.modal.id = 'drive-backup-modal';
+        this.modal.className = 'modal';
         
-        modal.innerHTML = `
-            <div style="background: white; padding: 20px; border-radius: 8px; width: 90%; max-width: 600px; max-height: 80vh; overflow-y: auto;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                    <h3 style="margin: 0;"><i class="fab fa-google-drive"></i> Google Drive Backup</h3>
-                    <button id="close-modal" style="background: none; border: none; font-size: 24px; cursor: pointer;">&times;</button>
+        this.modal.innerHTML = `
+            <div class="modal-content" style="max-width: 800px; max-height: 90vh;">
+                <div class="modal-header">
+                    <h3><i class="fab fa-google-drive"></i> Google Drive Backup</h3>
+                    <button class="modal-close">&times;</button>
                 </div>
-                
-                <div id="modal-content">
-                    <div style="text-align: center; padding: 40px;">
-                        <i class="fas fa-spinner fa-spin" style="font-size: 40px; color: #4285f4;"></i>
+                <div class="modal-body" id="drive-modal-body">
+                    <div class="text-center" style="padding: 40px;">
+                        <i class="fas fa-spinner fa-spin" style="font-size: 24px;"></i>
                         <p>Carregando...</p>
                     </div>
                 </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary modal-close">Fechar</button>
+                </div>
             </div>
         `;
-        
-        document.body.appendChild(modal);
-        
-        // Fechar modal
-        modal.querySelector('#close-modal').onclick = () => modal.remove();
-        modal.onclick = (e) => {
-            if (e.target === modal) modal.remove();
-        };
-    } else {
-        modal.style.display = 'flex';
-    }
-    
-    // Carregar conteúdo
-    loadModalContent();
-}
 
-async function loadModalContent() {
-    const content = document.getElementById('modal-content');
-    if (!content) return;
-    
-    try {
-        // Carregar backups
-        const backups = await driveBackup.listBackups();
-        
-        let html = `
-            <div style="margin-bottom: 20px;">
-                <button id="create-backup-btn" style="background: #34a853; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; width: 100%;">
-                    <i class="fas fa-cloud-upload-alt"></i> Criar Novo Backup
-                </button>
+        document.body.appendChild(this.modal);
+
+        // Event listeners
+        this.modal.querySelectorAll('.modal-close').forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.modal.classList.remove('active');
+            });
+        });
+
+        this.modal.addEventListener('click', (e) => {
+            if (e.target === this.modal) {
+                this.modal.classList.remove('active');
+            }
+        });
+    }
+
+    // Atualizar conteúdo do modal
+    async updateModalContent() {
+        const body = document.getElementById('drive-modal-body');
+        if (!body) return;
+
+        const status = driveBackup.getStatus();
+
+        let content = '';
+
+        if (!status.isInitialized) {
+            content = this.renderLoading();
+        } else if (!status.isLoggedIn) {
+            content = this.renderLogin();
+        } else {
+            content = await this.renderMainContent();
+        }
+
+        body.innerHTML = content;
+        this.attachModalEvents();
+    }
+
+    // Tela de login
+    renderLogin() {
+        return `
+            <div class="login-section">
+                <div class="text-center" style="margin-bottom: 30px;">
+                    <i class="fab fa-google-drive" style="font-size: 60px; color: #4285f4; margin-bottom: 20px;"></i>
+                    <h4>Conectar ao Google Drive</h4>
+                    <p class="text-muted">Faça backup e restaure seus dados do Camarim Boutique</p>
+                </div>
+
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    <strong>Benefícios:</strong>
+                    <ul style="margin: 10px 0 10px 20px;">
+                        <li>Backup seguro na nuvem</li>
+                        <li>Acesse de qualquer dispositivo</li>
+                        <li>Restauração de versões anteriores</li>
+                        <li>15GB gratuitos com Google</li>
+                    </ul>
+                </div>
+
+                <div class="text-center" style="margin-top: 30px;">
+                    <button id="drive-login-btn" class="btn btn-lg btn-success">
+                        <i class="fab fa-google"></i> Conectar com Google
+                    </button>
+                </div>
+
+                <div class="text-center" style="margin-top: 20px; font-size: 12px; color: #666;">
+                    <p>Será solicitado acesso apenas para arquivos criados por este aplicativo</p>
+                </div>
             </div>
         `;
-        
-        if (backups.length > 0) {
-            html += `
-                <h4>Backups Disponíveis:</h4>
-                <div style="max-height: 400px; overflow-y: auto;">
-            `;
-            
-            backups.forEach(backup => {
-                const date = backup.createdTime.toLocaleDateString('pt-BR');
-                const time = backup.createdTime.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
-                
-                html += `
-                    <div style="border: 1px solid #ddd; border-radius: 4px; padding: 10px; margin-bottom: 10px;">
-                        <div style="font-weight: bold;">${backup.name}</div>
-                        <div style="font-size: 12px; color: #666; margin-top: 5px;">
-                            ${date} ${time} • ${backup.readableSize}
+    }
+
+    // Conteúdo principal
+    async renderMainContent() {
+        const status = driveBackup.getStatus();
+        const storageInfo = await driveBackup.getStorageInfo();
+        const backups = await driveBackup.listBackups();
+
+        return `
+            <div class="drive-main-content">
+                <!-- Cabeçalho -->
+                <div class="drive-header">
+                    <div class="user-info">
+                        <i class="fas fa-user-circle"></i>
+                        <div>
+                            <strong>${status.userEmail}</strong>
+                            <div class="text-small">Conectado ao Google Drive</div>
                         </div>
-                        <div style="margin-top: 10px;">
-                            <button class="restore-btn" data-id="${backup.id}" style="background: #4285f4; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; margin-right: 5px;">
-                                <i class="fas fa-download"></i> Restaurar
-                            </button>
+                        <button id="drive-logout-btn" class="btn btn-small btn-danger">
+                            <i class="fas fa-sign-out-alt"></i> Sair
+                        </button>
+                    </div>
+
+                    <!-- Armazenamento -->
+                    ${storageInfo ? `
+                    <div class="storage-info">
+                        <div class="storage-label">
+                            <i class="fas fa-hdd"></i> Armazenamento
+                        </div>
+                        <div class="storage-bar">
+                            <div class="storage-fill" style="width: ${storageInfo.usedPercentage}%"></div>
+                        </div>
+                        <div class="storage-stats">
+                            ${(storageInfo.inDrive / 1024 / 1024 / 1024).toFixed(2)} GB de 
+                            ${(storageInfo.total / 1024 / 1024 / 1024).toFixed(0)} GB
+                            (${storageInfo.usedPercentage}%)
                         </div>
                     </div>
-                `;
-            });
-            
-            html += `</div>`;
-        } else {
-            html += `
-                <div style="text-align: center; padding: 20px; color: #666;">
-                    <i class="fas fa-database" style="font-size: 40px; margin-bottom: 10px;"></i>
-                    <p>Nenhum backup encontrado</p>
+                    ` : ''}
                 </div>
-            `;
-        }
-        
-        content.innerHTML = html;
-        
-        // Adicionar eventos
-        document.getElementById('create-backup-btn').onclick = async function() {
-            if (confirm('Criar backup dos dados atuais?')) {
+
+                <!-- Criar Backup -->
+                <div class="section-card">
+                    <h4><i class="fas fa-cloud-upload-alt"></i> Criar Novo Backup</h4>
+                    <div class="form-group">
+                        <label for="backup-description">Descrição (opcional):</label>
+                        <input type="text" id="backup-description" class="form-control" 
+                               placeholder="Ex: Backup semanal, antes de alterações...">
+                    </div>
+                    <button id="create-backup-btn" class="btn btn-success btn-block">
+                        <i class="fas fa-cloud-upload-alt"></i> Criar Backup
+                    </button>
+                    <div class="text-small text-muted mt-10">
+                        <i class="fas fa-info-circle"></i>
+                        Será salvo todo o sistema: produtos, vendas e configurações
+                    </div>
+                </div>
+
+                <!-- Lista de Backups -->
+                <div class="section-card">
+                    <div class="section-header">
+                        <h4><i class="fas fa-history"></i> Backups Disponíveis</h4>
+                        <button id="refresh-backups-btn" class="btn btn-small btn-info">
+                            <i class="fas fa-sync"></i>
+                        </button>
+                    </div>
+
+                    ${backups.length === 0 ? `
+                    <div class="empty-state">
+                        <i class="fas fa-database" style="font-size: 40px; color: #ccc; margin-bottom: 15px;"></i>
+                        <p>Nenhum backup encontrado</p>
+                        <p class="text-small">Crie seu primeiro backup!</p>
+                    </div>
+                    ` : `
+                    <div class="backups-list">
+                        ${backups.map((backup, index) => this.renderBackupItem(backup, index)).join('')}
+                    </div>
+                    `}
+                </div>
+            </div>
+        `;
+    }
+
+    // Item de backup
+    renderBackupItem(backup, index) {
+        const date = backup.createdTime.toLocaleDateString('pt-BR');
+        const time = backup.createdTime.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+        const isRecent = index === 0;
+
+        return `
+            <div class="backup-item ${isRecent ? 'recent' : ''}">
+                <div class="backup-icon">
+                    <i class="fas fa-database"></i>
+                </div>
+                <div class="backup-info">
+                    <div class="backup-name">${backup.name}</div>
+                    <div class="backup-meta">
+                        <span><i class="far fa-calendar"></i> ${date} ${time}</span>
+                        <span><i class="fas fa-weight-hanging"></i> ${backup.readableSize}</span>
+                        ${backup.description ? `<span><i class="far fa-comment"></i> ${backup.description}</span>` : ''}
+                    </div>
+                </div>
+                <div class="backup-actions">
+                    <button class="btn btn-success restore-btn" 
+                            data-id="${backup.id}"
+                            data-name="${backup.name}">
+                        <i class="fas fa-download"></i> Restaurar
+                    </button>
+                    ${!isRecent ? `
+                    <button class="btn btn-danger delete-btn" 
+                            data-id="${backup.id}"
+                            data-name="${backup.name}">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+    }
+
+    // Tela de carregamento
+    renderLoading() {
+        return `
+            <div class="text-center" style="padding: 40px;">
+                <i class="fas fa-spinner fa-spin" style="font-size: 32px; color: #4285f4;"></i>
+                <p style="margin-top: 15px;">Inicializando Drive Backup...</p>
+            </div>
+        `;
+    }
+
+    // Anexar eventos do modal
+    attachModalEvents() {
+        // Login
+        const loginBtn = document.getElementById('drive-login-btn');
+        if (loginBtn) {
+            loginBtn.addEventListener('click', async () => {
                 try {
-                    this.disabled = true;
-                    this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Criando...';
+                    loginBtn.disabled = true;
+                    loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Conectando...';
+
+                    await driveBackup.login();
+                    this.updateUI();
+                    await this.updateModalContent();
+
+                } catch (error) {
+                    alert(`Erro: ${error.message}`);
+                    loginBtn.disabled = false;
+                    loginBtn.innerHTML = '<i class="fab fa-google"></i> Conectar com Google';
+                }
+            });
+        }
+
+        // Logout
+        const logoutBtn = document.getElementById('drive-logout-btn');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', async () => {
+                if (confirm('Deseja desconectar do Google Drive?')) {
+                    await driveBackup.logout();
+                    this.updateUI();
+                    await this.updateModalContent();
+                }
+            });
+        }
+
+        // Criar backup
+        const createBackupBtn = document.getElementById('create-backup-btn');
+        if (createBackupBtn) {
+            createBackupBtn.addEventListener('click', async () => {
+                try {
+                    const description = document.getElementById('backup-description')?.value || '';
                     
+                    if (!confirm('Criar backup dos dados atuais?')) return;
+
+                    createBackupBtn.disabled = true;
+                    createBackupBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Criando...';
+
                     const systemData = window.systemData;
                     if (!systemData) {
                         throw new Error('Dados do sistema não disponíveis');
                     }
+
+                    const result = await driveBackup.createBackup(systemData, description);
                     
-                    await driveBackup.createBackup(systemData, 'Backup manual');
-                    alert('Backup criado com sucesso!');
-                    loadModalContent();
+                    alert(`✅ Backup criado com sucesso!\n\nArquivo: ${result.name}`);
+                    
+                    // Limpar descrição
+                    const descInput = document.getElementById('backup-description');
+                    if (descInput) descInput.value = '';
+
+                    await this.updateModalContent();
+
                 } catch (error) {
-                    alert('Erro: ' + error.message);
-                    this.disabled = false;
-                    this.innerHTML = '<i class="fas fa-cloud-upload-alt"></i> Criar Novo Backup';
+                    alert(`❌ Erro: ${error.message}`);
+                } finally {
+                    createBackupBtn.disabled = false;
+                    createBackupBtn.innerHTML = '<i class="fas fa-cloud-upload-alt"></i> Criar Backup';
+                }
+            });
+        }
+
+        // Atualizar lista
+        const refreshBtn = document.getElementById('refresh-backups-btn');
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', async () => {
+                refreshBtn.classList.add('spin');
+                await this.updateModalContent();
+                setTimeout(() => refreshBtn.classList.remove('spin'), 500);
+            });
+        }
+
+        // Restaurar backup
+        document.querySelectorAll('.restore-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const fileId = e.target.closest('.restore-btn').dataset.id;
+                const fileName = e.target.closest('.restore-btn').dataset.name;
+
+                if (!confirm(`⚠️ ATENÇÃO\n\nRestaurar backup "${fileName}"?\n\nIsso substituirá TODOS os dados atuais do sistema.`)) {
+                    return;
+                }
+
+                try {
+                    btn.disabled = true;
+                    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Restaurando...';
+
+                    const backupData = await driveBackup.restoreBackup(fileId);
+
+                    // Atualizar sistema principal
+                    window.systemData = backupData;
+
+                    // Salvar localmente
+                    if (window.databaseManager && databaseManager.saveSystemData) {
+                        await databaseManager.saveSystemData(backupData);
+                    }
+
+                    // Atualizar interface
+                    if (window.loadData) loadData();
+                    if (window.updateDashboard) updateDashboard();
+                    if (window.updateProductsList) updateProductsList();
+                    if (window.updateSalesList) updateSalesList();
+
+                    alert('✅ Backup restaurado com sucesso!');
+                    this.modal.classList.remove('active');
+
+                } catch (error) {
+                    alert(`❌ Erro: ${error.message}`);
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-download"></i> Restaurar';
+                }
+            });
+        });
+
+        // Excluir backup
+        document.querySelectorAll('.delete-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const fileId = e.target.closest('.delete-btn').dataset.id;
+                const fileName = e.target.closest('.delete-btn').dataset.name;
+
+                if (!confirm(`Excluir permanentemente o backup "${fileName}"?\n\nEsta ação não pode ser desfeita.`)) {
+                    return;
+                }
+
+                try {
+                    btn.disabled = true;
+                    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+                    await driveBackup.deleteBackup(fileId);
+                    await this.updateModalContent();
+
+                } catch (error) {
+                    alert(`❌ Erro: ${error.message}`);
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-trash"></i>';
+                }
+            });
+        });
+    }
+
+    // Adicionar estilos
+    addStyles() {
+        const styles = `
+        <style>
+            /* Drive Backup Styles */
+            .drive-header {
+                background: linear-gradient(135deg, #4285f4, #34a853);
+                color: white;
+                padding: 20px;
+                border-radius: 8px;
+                margin-bottom: 20px;
+            }
+
+            .user-info {
+                display: flex;
+                align-items: center;
+                gap: 15px;
+                margin-bottom: 15px;
+            }
+
+            .user-info i {
+                font-size: 40px;
+            }
+
+            .storage-info {
+                background: rgba(255, 255, 255, 0.2);
+                padding: 15px;
+                border-radius: 6px;
+            }
+
+            .storage-bar {
+                height: 10px;
+                background: rgba(255, 255, 255, 0.3);
+                border-radius: 5px;
+                overflow: hidden;
+                margin: 10px 0;
+            }
+
+            .storage-fill {
+                height: 100%;
+                background: white;
+                border-radius: 5px;
+                transition: width 0.3s;
+            }
+
+            .section-card {
+                background: #f8f9fa;
+                border-radius: 8px;
+                padding: 20px;
+                margin-bottom: 20px;
+                border: 1px solid #dee2e6;
+            }
+
+            .section-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 15px;
+            }
+
+            .backups-list {
+                max-height: 400px;
+                overflow-y: auto;
+            }
+
+            .backup-item {
+                display: flex;
+                align-items: center;
+                padding: 15px;
+                background: white;
+                border-radius: 6px;
+                margin-bottom: 10px;
+                border: 1px solid #dee2e6;
+                transition: all 0.2s;
+            }
+
+            .backup-item:hover {
+                border-color: #4285f4;
+                box-shadow: 0 2px 8px rgba(66, 133, 244, 0.1);
+            }
+
+            .backup-item.recent {
+                border-left: 4px solid #34a853;
+            }
+
+            .backup-icon {
+                background: #4285f4;
+                color: white;
+                width: 40px;
+                height: 40px;
+                border-radius: 8px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                margin-right: 15px;
+                flex-shrink: 0;
+            }
+
+            .backup-info {
+                flex: 1;
+                min-width: 0;
+            }
+
+            .backup-name {
+                font-weight: 500;
+                margin-bottom: 5px;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+
+            .backup-meta {
+                display: flex;
+                gap: 15px;
+                font-size: 12px;
+                color: #666;
+                flex-wrap: wrap;
+            }
+
+            .backup-meta span {
+                display: flex;
+                align-items: center;
+                gap: 5px;
+            }
+
+            .backup-actions {
+                display: flex;
+                gap: 10px;
+                flex-shrink: 0;
+            }
+
+            .empty-state {
+                text-align: center;
+                padding: 40px;
+                color: #6c757d;
+            }
+
+            .text-small {
+                font-size: 12px;
+            }
+
+            .mt-10 { margin-top: 10px; }
+            .mt-20 { margin-top: 20px; }
+
+            /* Botão com animação de rotação */
+            .spin {
+                animation: spin 0.5s linear;
+            }
+
+            @keyframes spin {
+                from { transform: rotate(0deg); }
+                to { transform: rotate(360deg); }
+            }
+
+            /* Responsivo */
+            @media (max-width: 768px) {
+                .backup-item {
+                    flex-direction: column;
+                    align-items: stretch;
+                }
+                
+                .backup-icon {
+                    margin-right: 0;
+                    margin-bottom: 10px;
+                    align-self: flex-start;
+                }
+                
+                .backup-actions {
+                    margin-top: 10px;
+                    justify-content: flex-end;
+                }
+                
+                .backup-meta {
+                    flex-direction: column;
+                    gap: 5px;
                 }
             }
-        };
-        
-        // Adicionar eventos aos botões de restaurar
-        document.querySelectorAll('.restore-btn').forEach(button => {
-            button.onclick = async function() {
-                const fileId = this.dataset.id;
-                const fileName = this.closest('div').querySelector('div').textContent;
-                
-                if (confirm(`Restaurar backup "${fileName}"?\n\nIsso substituirá todos os dados atuais.`)) {
-                    try {
-                        this.disabled = true;
-                        this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Restaurando...';
-                        
-                        const backupData = await driveBackup.restoreBackup(fileId);
-                        
-                        // Substituir dados
-                        window.systemData = backupData;
-                        
-                        // Salvar localmente
-                        if (window.databaseManager && databaseManager.saveSystemData) {
-                            await databaseManager.saveSystemData(backupData);
-                        }
-                        
-                        // Recarregar sistema
-                        if (window.loadData) loadData();
-                        if (window.updateDashboard) updateDashboard();
-                        if (window.updateProductsList) updateProductsList();
-                        
-                        alert('Backup restaurado com sucesso!');
-                        document.getElementById('simple-drive-modal').remove();
-                    } catch (error) {
-                        alert('Erro: ' + error.message);
-                        this.disabled = false;
-                        this.innerHTML = '<i class="fas fa-download"></i> Restaurar';
-                    }
-                }
-            };
-        });
-        
-    } catch (error) {
-        content.innerHTML = `
-            <div style="text-align: center; padding: 20px; color: #d32f2f;">
-                <i class="fas fa-exclamation-triangle" style="font-size: 40px; margin-bottom: 10px;"></i>
-                <p>Erro: ${error.message}</p>
-                <button onclick="loadModalContent()" style="background: #4285f4; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer;">
-                    Tentar Novamente
-                </button>
-            </div>
+        </style>
         `;
+
+        document.head.insertAdjacentHTML('beforeend', styles);
     }
 }
 
-// Adicionar estilos
-const styles = `
-<style>
-    #drive-backup-btn {
-        transition: all 0.3s ease;
-    }
-    
-    #drive-backup-btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-    }
-    
-    .restore-btn:hover {
-        opacity: 0.9;
-    }
-</style>
-`;
+// ============================================
+// INICIALIZAÇÃO
+// ============================================
 
-document.head.insertAdjacentHTML('beforeend', styles);
+// Instância da UI
+const driveBackupUI = new DriveBackupUI();
+
+// Inicializar quando o sistema principal estiver pronto
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('📁 Drive Backup: Aguardando sistema principal...');
+    
+    // Esperar um pouco para o sistema principal carregar
+    setTimeout(() => {
+        driveBackupUI.initialize();
+    }, 1500);
+});
+
+// Expor funções globais para debug
+window.debugDriveBackup = {
+    getStatus: () => driveBackup.getStatus(),
+    listBackups: () => driveBackup.listBackups(),
+    showModal: () => driveBackupUI.showMainModal()
+};
 
 console.log('✅ Drive Backup System carregado');
