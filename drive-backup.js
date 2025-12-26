@@ -9,7 +9,7 @@ const GOOGLE_DRIVE_CONFIG = {
     // 1. Vá para https://console.developers.google.com/
     // 2. Crie um projeto e ative a Google Drive API
     // 3. Crie credenciais OAuth 2.0 Client ID
-    apiKey: 'AIzaSyDSHrja6ZPb6ycc3SK_sMz0X67fvensNJY', // Deixe vazio inicialmente, pode ser opcional
+    apiKey: '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', // Deixe vazio inicialmente, pode ser opcional
     clientId: '821978818510-oo69bs0uln83avvst0obpjmq9amgtg8c.apps.googleusercontent.com', // Seu Client ID do Google Cloud Console
     discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
     scope: 'https://www.googleapis.com/auth/drive.file',
