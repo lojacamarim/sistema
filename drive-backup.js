@@ -6,8 +6,8 @@ let driveBackup = {
     isInitialized: false,
     accessToken: null,
     // SUBSTITUA ESTES VALORES PELOS SEUS
-    clientId: '821978818510-ia36jn3fn9ucqgl27jmtbaqeee9kujmp.apps.googleusercontent.com',
-    apiKey: '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',
+    clientId: '821978818510-oo69bs0uln83avvst0obpjmq9amgtg8c.apps.googleusercontent.com',
+    apiKey: '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',
     discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
     scope: 'https://www.googleapis.com/auth/drive.file',
     folderName: 'Camarim-Backup-System',
