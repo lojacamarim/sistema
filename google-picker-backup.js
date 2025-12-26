@@ -18,22 +18,18 @@ class GooglePickerBackup {
         };
         
         // Iniciar automaticamente
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', () => this.init());
-        } else {
-            setTimeout(() => this.init(), 1000);
-        }
+        setTimeout(() => this.init(), 1000);
     }
     
     async init() {
         console.log('🚀 Iniciando Google Picker Backup...');
         
         try {
+            // Adicionar interface primeiro (independente das APIs)
+            this.addToInterface();
+            
             // Carregar APIs do Google
             await this.loadGoogleAPIs();
-            
-            // Adicionar interface
-            setTimeout(() => this.addToInterface(), 1000);
             
         } catch (error) {
             console.error('Erro na inicialização:', error);
@@ -47,6 +43,7 @@ class GooglePickerBackup {
                 console.log('✅ APIs Google já carregadas');
                 this.config.pickerApiLoaded = true;
                 this.config.authApiLoaded = true;
+                this.updateUI();
                 resolve();
                 return;
             }
@@ -77,9 +74,11 @@ class GooglePickerBackup {
                         // Verificar se já está autenticado
                         this.checkExistingAuth();
                         
+                        this.updateUI();
                         resolve();
                     }).catch(error => {
                         console.error('❌ Erro ao inicializar Google API:', error);
+                        this.updateUI();
                         reject(error);
                     });
                 });
@@ -87,6 +86,7 @@ class GooglePickerBackup {
             
             gapiScript.onerror = () => {
                 console.error('❌ Erro ao carregar Google API');
+                this.updateUI();
                 reject(new Error('Falha ao carregar Google API'));
             };
             
@@ -95,83 +95,225 @@ class GooglePickerBackup {
     }
     
     checkExistingAuth() {
-        const user = gapi.auth2.getAuthInstance().currentUser.get();
-        
-        if (user && user.isSignedIn()) {
-            console.log('✅ Usuário já autenticado');
-            this.state.isAuthenticated = true;
-            this.state.accessToken = user.getAuthResponse().access_token;
-            this.updateUI();
+        try {
+            const auth2 = gapi.auth2.getAuthInstance();
+            if (!auth2) return;
+            
+            const user = auth2.currentUser.get();
+            
+            if (user && user.isSignedIn()) {
+                console.log('✅ Usuário já autenticado');
+                this.state.isAuthenticated = true;
+                this.state.accessToken = user.getAuthResponse().access_token;
+            }
+        } catch (error) {
+            console.log('ℹ️ Nenhuma autenticação existente');
         }
     }
     
     addToInterface() {
-        // Esperar pelo sistema principal
-        let attempts = 0;
-        const maxAttempts = 10;
+        console.log('🎨 Adicionando interface do Google Picker...');
         
-        const tryAdd = () => {
-            const databaseView = document.getElementById('database-view');
-            
-            if (databaseView && !document.getElementById('google-picker-section')) {
-                console.log('✅ Adicionando interface do Google Picker...');
-                
-                const pickerSection = document.createElement('div');
-                pickerSection.id = 'google-picker-section';
-                pickerSection.className = 'mt-4';
-                pickerSection.innerHTML = `
-                    <div class="card">
-                        <div class="card-header" style="background: linear-gradient(135deg, #EA4335, #FBBC05);">
-                            <h4 class="mb-0 text-white">
-                                <i class="fab fa-google mr-2"></i> 
-                                Backup com Google Drive (Visual)
-                            </h4>
-                        </div>
-                        <div class="card-body">
-                            <div id="picker-backup-content">
-                                <div class="text-center py-4">
-                                    <div class="spinner-border text-warning" role="status">
-                                        <span class="sr-only">Carregando...</span>
-                                    </div>
-                                    <p class="mt-2">Carregando interface do Google Drive...</p>
-                                </div>
+        // Primeiro, procurar por locais comuns
+        const possibleLocations = [
+            document.getElementById('database-view'),
+            document.getElementById('backup-section'),
+            document.getElementById('config-section'),
+            document.querySelector('.container'),
+            document.querySelector('.main-content'),
+            document.body
+        ];
+        
+        let targetLocation = null;
+        
+        for (const location of possibleLocations) {
+            if (location && !document.getElementById('google-picker-section')) {
+                targetLocation = location;
+                break;
+            }
+        }
+        
+        if (!targetLocation) {
+            console.warn('⚠️ Não encontrei um local para adicionar a interface');
+            // Criar um container se não existir
+            this.createContainer();
+            return;
+        }
+        
+        // Criar seção do Google Picker
+        const pickerSection = document.createElement('div');
+        pickerSection.id = 'google-picker-section';
+        pickerSection.className = 'google-picker-container';
+        pickerSection.style.cssText = `
+            margin: 20px 0;
+            padding: 0;
+            width: 100%;
+        `;
+        
+        pickerSection.innerHTML = `
+            <div class="card" style="border: 2px solid #4285F4; border-radius: 10px;">
+                <div class="card-header" style="background: linear-gradient(135deg, #4285F4, #34A853); border-radius: 8px 8px 0 0;">
+                    <h4 class="mb-0 text-white" style="display: flex; align-items: center;">
+                        <i class="fab fa-google-drive mr-2"></i> 
+                        Backup no Google Drive
+                        <span id="picker-status" class="badge badge-light ml-2" style="font-size: 0.7rem;">Carregando...</span>
+                    </h4>
+                </div>
+                <div class="card-body" style="padding: 20px;">
+                    <div id="picker-backup-content">
+                        <div class="text-center py-4">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="sr-only">Carregando...</span>
                             </div>
+                            <p class="mt-2">Inicializando sistema de backup...</p>
                         </div>
                     </div>
-                `;
-                
-                // Inserir após a seção de backup local
-                const localBackupSection = databaseView.querySelector('.form-group:last-child');
-                if (localBackupSection) {
-                    localBackupSection.parentNode.insertBefore(pickerSection, localBackupSection.nextSibling);
-                } else {
-                    databaseView.appendChild(pickerSection);
-                }
-                
-                this.updateUI();
-                
-            } else if (attempts < maxAttempts) {
-                attempts++;
-                setTimeout(tryAdd, 500);
-            }
-        };
+                </div>
+            </div>
+        `;
         
-        tryAdd();
+        // Adicionar estilos CSS
+        this.addStyles();
+        
+        // Inserir a seção
+        if (targetLocation === document.body) {
+            // Se for body, adicionar no início
+            document.body.insertBefore(pickerSection, document.body.firstChild);
+        } else {
+            // Se for outro elemento, adicionar no final
+            targetLocation.appendChild(pickerSection);
+        }
+        
+        console.log('✅ Interface adicionada com sucesso');
+        this.updateUI();
+    }
+    
+    createContainer() {
+        console.log('🏗️ Criando container para a interface...');
+        
+        // Criar um container no body
+        const container = document.createElement('div');
+        container.id = 'google-backup-container';
+        container.style.cssText = `
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 350px;
+            z-index: 1000;
+        `;
+        
+        container.innerHTML = `
+            <div class="card shadow-lg" style="border: 2px solid #4285F4;">
+                <div class="card-header" style="background: #4285F4; color: white; padding: 10px 15px;">
+                    <h5 class="mb-0" style="font-size: 1rem;">
+                        <i class="fab fa-google-drive mr-2"></i> Google Drive Backup
+                    </h5>
+                </div>
+                <div class="card-body" style="padding: 15px;">
+                    <div id="picker-backup-content">
+                        <div class="text-center py-3">
+                            <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                <span class="sr-only">Carregando...</span>
+                            </div>
+                            <p class="mt-2 small">Carregando...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(container);
+        this.addStyles();
+        this.updateUI();
+    }
+    
+    addStyles() {
+        // Adicionar estilos CSS se não existirem
+        if (document.getElementById('google-picker-styles')) return;
+        
+        const styles = document.createElement('style');
+        styles.id = 'google-picker-styles';
+        styles.textContent = `
+            .google-picker-container {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            }
+            
+            .google-picker-container .btn-google {
+                background: linear-gradient(135deg, #4285F4, #34A853);
+                color: white;
+                border: none;
+                padding: 10px 20px;
+                border-radius: 5px;
+                font-weight: 500;
+                transition: all 0.3s;
+            }
+            
+            .google-picker-container .btn-google:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            }
+            
+            .google-picker-container .btn-google:disabled {
+                opacity: 0.6;
+                cursor: not-allowed;
+            }
+            
+            .google-picker-container .card {
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            }
+            
+            .google-picker-container .feature-card {
+                border: 1px solid #e0e0e0;
+                border-radius: 8px;
+                padding: 15px;
+                margin-bottom: 15px;
+                transition: all 0.3s;
+            }
+            
+            .google-picker-container .feature-card:hover {
+                transform: translateY(-3px);
+                box-shadow: 0 6px 12px rgba(0,0,0,0.1);
+            }
+        `;
+        
+        document.head.appendChild(styles);
     }
     
     updateUI() {
         const content = document.getElementById('picker-backup-content');
-        if (!content) return;
+        const status = document.getElementById('picker-status');
+        
+        if (!content) {
+            console.warn('⚠️ Elemento #picker-backup-content não encontrado');
+            return;
+        }
+        
+        // Atualizar status
+        if (status) {
+            if (this.state.isAuthenticated) {
+                status.className = 'badge badge-success ml-2';
+                status.textContent = 'Conectado';
+                status.style.fontSize = '0.7rem';
+            } else if (this.config.pickerApiLoaded) {
+                status.className = 'badge badge-warning ml-2';
+                status.textContent = 'Pronto';
+                status.style.fontSize = '0.7rem';
+            } else {
+                status.className = 'badge badge-secondary ml-2';
+                status.textContent = 'Carregando...';
+                status.style.fontSize = '0.7rem';
+            }
+        }
         
         content.innerHTML = '';
         
         if (this.state.isLoading) {
             content.innerHTML = `
-                <div class="text-center py-4">
+                <div class="text-center py-3">
                     <div class="spinner-border text-primary" role="status">
                         <span class="sr-only">Carregando...</span>
                     </div>
-                    <p class="mt-2">Processando...</p>
+                    <p class="mt-2 small">Processando...</p>
                 </div>
             `;
             return;
@@ -180,14 +322,14 @@ class GooglePickerBackup {
         // Verificar se APIs estão carregadas
         if (!this.config.pickerApiLoaded || !this.config.authApiLoaded) {
             content.innerHTML = `
-                <div class="text-center py-4">
-                    <i class="fab fa-google fa-3x mb-3" style="color: #4285F4;"></i>
-                    <h5 class="mb-3">Carregando Google Drive...</h5>
+                <div class="text-center">
+                    <i class="fab fa-google fa-2x mb-3" style="color: #4285F4;"></i>
+                    <h6 class="mb-2">Google Drive Backup</h6>
+                    <p class="text-muted small mb-3">Carregando integração com Google Drive...</p>
                     <div class="spinner-border spinner-border-sm text-primary mb-3" role="status">
                         <span class="sr-only">Carregando...</span>
                     </div>
-                    <p class="text-muted">Aguarde enquanto carregamos a interface do Google.</p>
-                    <button class="btn btn-sm btn-outline-secondary mt-2" onclick="location.reload()">
+                    <button class="btn btn-sm btn-outline-secondary" onclick="location.reload()">
                         <i class="fas fa-sync"></i> Recarregar
                     </button>
                 </div>
@@ -197,133 +339,55 @@ class GooglePickerBackup {
         
         if (this.state.isAuthenticated) {
             content.innerHTML = `
-                <div class="alert alert-success">
-                    <div class="d-flex align-items-center">
-                        <i class="fas fa-check-circle fa-lg mr-2"></i>
-                        <span>Conectado ao Google Drive</span>
-                        <button class="btn btn-sm btn-warning ml-auto" onclick="window.pickerBackup.logout()">
+                <div style="margin-bottom: 15px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <span style="color: #34A853; font-weight: 500;">
+                            <i class="fas fa-check-circle mr-1"></i> Conectado
+                        </span>
+                        <button class="btn btn-sm btn-outline-warning" onclick="window.pickerBackup.logout()" style="padding: 3px 8px; font-size: 0.8rem;">
                             <i class="fas fa-sign-out-alt"></i> Sair
                         </button>
                     </div>
                 </div>
                 
-                <div class="text-center mb-4">
-                    <button class="btn btn-primary btn-lg mr-2 mb-2" onclick="window.pickerBackup.openPickerForUpload()">
-                        <i class="fas fa-cloud-upload-alt mr-2"></i> Salvar Backup
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
+                    <button class="btn btn-primary btn-block" onclick="window.pickerBackup.openPickerForUpload()" style="padding: 8px 12px; font-size: 0.85rem;">
+                        <i class="fas fa-cloud-upload-alt mr-1"></i> Salvar
                     </button>
-                    <button class="btn btn-success btn-lg mr-2 mb-2" onclick="window.pickerBackup.openPickerForDownload()">
-                        <i class="fas fa-cloud-download-alt mr-2"></i> Restaurar Backup
-                    </button>
-                    <button class="btn btn-info btn-lg mb-2" onclick="window.pickerBackup.openPickerForView()">
-                        <i class="fas fa-folder-open mr-2"></i> Ver Meus Backups
+                    <button class="btn btn-success btn-block" onclick="window.pickerBackup.openPickerForDownload()" style="padding: 8px 12px; font-size: 0.85rem;">
+                        <i class="fas fa-cloud-download-alt mr-1"></i> Restaurar
                     </button>
                 </div>
                 
-                <div class="row">
-                    <div class="col-md-4 mb-3">
-                        <div class="card h-100 text-center border-primary">
-                            <div class="card-body">
-                                <i class="fas fa-save fa-3x text-primary mb-3"></i>
-                                <h5>Salvar Backup</h5>
-                                <p class="small text-muted">Crie um novo backup dos seus dados atuais</p>
-                                <button class="btn btn-outline-primary btn-block" onclick="window.pickerBackup.openPickerForUpload()">
-                                    <i class="fas fa-upload"></i> Salvar
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="col-md-4 mb-3">
-                        <div class="card h-100 text-center border-success">
-                            <div class="card-body">
-                                <i class="fas fa-history fa-3x text-success mb-3"></i>
-                                <h5>Restaurar</h5>
-                                <p class="small text-muted">Recupere dados de um backup anterior</p>
-                                <button class="btn btn-outline-success btn-block" onclick="window.pickerBackup.openPickerForDownload()">
-                                    <i class="fas fa-download"></i> Restaurar
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="col-md-4 mb-3">
-                        <div class="card h-100 text-center border-info">
-                            <div class="card-body">
-                                <i class="fas fa-folder fa-3x text-info mb-3"></i>
-                                <h5>Gerenciar</h5>
-                                <p class="small text-muted">Veja e organize seus backups</p>
-                                <button class="btn btn-outline-info btn-block" onclick="window.pickerBackup.openPickerForView()">
-                                    <i class="fas fa-search"></i> Explorar
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                <button class="btn btn-info btn-block mb-3" onclick="window.pickerBackup.openPickerForView()" style="padding: 8px 12px; font-size: 0.85rem;">
+                    <i class="fas fa-folder-open mr-1"></i> Ver Backups
+                </button>
                 
-                <div class="mt-4">
-                    <h5 class="border-bottom pb-2">Como funciona:</h5>
-                    <ol class="pl-3">
-                        <li class="mb-2"><strong>Salvar:</strong> Clica em "Salvar Backup" e escolhe onde salvar</li>
-                        <li class="mb-2"><strong>Restaurar:</strong> Clica em "Restaurar Backup" e seleciona o arquivo</li>
-                        <li class="mb-2"><strong>Visual:</strong> Veja todos seus arquivos na interface do Google</li>
-                    </ol>
+                <div class="text-center">
+                    <small class="text-muted">Use a interface visual do Google Drive</small>
                 </div>
             `;
             
         } else {
             content.innerHTML = `
-                <div class="text-center py-4">
-                    <i class="fab fa-google-drive fa-5x mb-4" style="color: #4285F4;"></i>
-                    <h3 class="mb-3">Backup Visual no Google Drive</h3>
-                    <p class="lead text-muted mb-4">
-                        Veja e selecione seus backups na interface familiar do Google Drive
-                    </p>
+                <div class="text-center">
+                    <i class="fab fa-google-drive fa-3x mb-3" style="color: #4285F4;"></i>
+                    <h6 class="mb-2">Backup no Google Drive</h6>
+                    <p class="text-muted small mb-3">Salve e restaure seus dados visualmente</p>
                     
-                    <div class="row mb-4">
-                        <div class="col-md-4 mb-3">
-                            <div class="card h-100 border-0 shadow-sm">
-                                <div class="card-body text-center">
-                                    <i class="fas fa-eye fa-2x text-primary mb-3"></i>
-                                    <h6>Interface Visual</h6>
-                                    <p class="small text-muted">Veja seus arquivos como no Google Drive</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <div class="card h-100 border-0 shadow-sm">
-                                <div class="card-body text-center">
-                                    <i class="fas fa-folder-tree fa-2x text-success mb-3"></i>
-                                    <h6>Organização</h6>
-                                    <p class="small text-muted">Use pastas e organização do Drive</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <div class="card h-100 border-0 shadow-sm">
-                                <div class="card-body text-center">
-                                    <i class="fas fa-mouse-pointer fa-2x text-info mb-3"></i>
-                                    <h6>Clique e Escolha</h6>
-                                    <p class="small text-muted">Selecione arquivos visualmente</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <button class="btn btn-lg btn-primary mb-3" onclick="window.pickerBackup.login()" 
-                            style="background: linear-gradient(135deg, #4285F4, #34A853); border: none; padding: 15px 40px;">
-                        <i class="fab fa-google mr-2"></i> Conectar com Google Drive
+                    <button class="btn btn-google btn-block mb-3" onclick="window.pickerBackup.login()" style="padding: 10px;">
+                        <i class="fab fa-google mr-2"></i> Conectar com Google
                     </button>
                     
-                    <div class="alert alert-light border mt-4">
-                        <i class="fas fa-info-circle text-primary mr-2"></i>
-                        <strong>Diferencial:</strong> Você verá a interface completa do Google Drive para escolher 
-                        onde salvar e de onde restaurar seus backups.
-                    </div>
-                    
-                    <div class="mt-3">
-                        <img src="https://www.gstatic.com/images/branding/product/2x/drive_96dp.png" 
-                             alt="Google Drive" class="img-fluid" style="max-height: 60px; opacity: 0.7;">
-                        <p class="small text-muted mt-2">Integração oficial com Google Drive</p>
+                    <div style="background: #f8f9fa; padding: 10px; border-radius: 5px; margin-top: 15px;">
+                        <h6 style="font-size: 0.9rem; color: #4285F4; margin-bottom: 8px;">
+                            <i class="fas fa-star mr-1"></i> Vantagens:
+                        </h6>
+                        <ul style="text-align: left; padding-left: 20px; margin-bottom: 0; font-size: 0.8rem;">
+                            <li>Interface visual do Google</li>
+                            <li>Escolha pastas e arquivos</li>
+                            <li>Organização completa</li>
+                        </ul>
                     </div>
                 </div>
             `;
@@ -862,7 +926,7 @@ window.addEventListener('load', () => {
             console.log('🚀 Criando instância do Google Picker Backup...');
             window.pickerBackup = new GooglePickerBackup();
         }
-    }, 2000);
+    }, 1000);
 });
 
 console.log('✅ Google Picker Backup carregado');
