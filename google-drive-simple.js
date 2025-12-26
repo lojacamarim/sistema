@@ -3,9 +3,6 @@
 // PRONTA PARA USAR - COPIE E COLE
 // ============================================
 
-// 1. ADICIONE ESTE CÓDIGO NO SEU ARQUIVO JAVASCRIPT PRINCIPAL
-//    (pode ser no final do arquivo, antes do </script>)
-
 class GoogleDriveBackup {
     constructor() {
         this.config = {
