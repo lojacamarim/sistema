@@ -4,8 +4,8 @@
 
 // Configurações do Google Drive API
 const GOOGLE_DRIVE_CONFIG = {
-    apiKey: 'AIzaSyBYourAPIKeyHere', // Você precisa gerar sua própria API Key
-    clientId: 'YOUR_CLIENT_ID.apps.googleusercontent.com', // Seu Client ID
+    apiKey: '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', // Você precisa gerar sua própria API Key
+    clientId: '821978818510-oo69bs0uln83avvst0obpjmq9amgtg8c.apps.googleusercontent.com', // Seu Client ID
     discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
     scope: 'https://www.googleapis.com/auth/drive.file',
     folderName: 'Camarim-Backups',
