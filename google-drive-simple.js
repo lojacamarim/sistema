@@ -1,6 +1,4 @@
-// ============================================
 // GOOGLE DRIVE BACKUP - VERSÃO TESTADA E FUNCIONAL
-// ============================================
 
 class GoogleDriveBackupSimple {
     constructor() {
