@@ -2,8 +2,8 @@
 // Adicione no HTML: <script src="https://unpkg.com/drivefs"></script>
 
 const driveFS = new DriveFS({
-    clientId: 'SEU_CLIENT_ID',
-    apiKey: 'SUA_API_KEY'
+    clientId: '821978818510-oo69bs0uln83avvst0obpjmq9amgtg8c.apps.googleusercontent.com',
+    apiKey: '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'
 });
 
 // Backup com 3 linhas de código:
