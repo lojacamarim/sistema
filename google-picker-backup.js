@@ -116,7 +116,7 @@ class GooglePickerBackup {
         
         // Primeiro, procurar por locais comuns
         const possibleLocations = [
-            document.getElementById('database-view'),
+            document.getElementById('database'),
             document.getElementById('backup-section'),
             document.getElementById('config-section'),
             document.querySelector('.container'),
