@@ -6,8 +6,8 @@
 // Acesse: https://console.cloud.google.com/ > Seu projeto > APIs & Serviços > Credenciais
 
 const DRIVE_CONFIG = {
-    clientId: 'SEU_CLIENT_ID_AQUI.apps.googleusercontent.com', // 👈 Substituir
-    apiKey: 'SUA_API_KEY_AQUI', // 👈 Substituir
+    clientId: '821978818510-oo69bs0uln83avvst0obpjmq9amgtg8c.apps.googleusercontent.com', // 👈 Substituir
+    apiKey: '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', // 👈 Substituir
     scope: 'https://www.googleapis.com/auth/drive.file',
     discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
     folderName: 'Camarim-Backup-System'
