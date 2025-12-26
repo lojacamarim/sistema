@@ -1,5 +1,5 @@
 // GOOGLE DRIVE BACKUP - VERSÃO SUPER SIMPLIFICADA COM DriveFS
-// ADICIONE NO HTML: <script src="https://unpkg.com/drivefs@latest/dist/drivefs.min.js"></script>
+// ADICIONE NO HTML: <script src="https://cdn.jsdelivr.net/npm/drivefs@1.0.0/dist/drivefs.min.js"></script>
 
 class DriveBackupSimple {
     constructor() {
@@ -24,60 +24,166 @@ class DriveBackupSimple {
         console.log('🚀 Iniciando DriveFS Backup...');
         
         try {
-            // Verificar se DriveFS está carregado
-            if (typeof DriveFS === 'undefined') {
-                console.log('📦 Carregando DriveFS...');
-                await this.loadDriveFSScript();
-            }
+            // Adicionar interface primeiro
+            this.addToInterface();
+            
+            // Tentar carregar DriveFS de várias fontes
+            await this.loadDriveFSScript();
             
             // Inicializar DriveFS
+            this.initializeDriveFS();
+            
+        } catch (error) {
+            console.error('Erro na inicialização:', error);
+            this.showFallbackUI();
+        }
+    }
+    
+    async loadDriveFSScript() {
+        return new Promise((resolve, reject) => {
+            // Verificar se já está carregado
+            if (typeof DriveFS !== 'undefined') {
+                console.log('✅ DriveFS já está carregado');
+                resolve();
+                return;
+            }
+            
+            console.log('📦 Tentando carregar DriveFS...');
+            
+            // Tentar múltiplas fontes
+            const sources = [
+                'https://cdn.jsdelivr.net/npm/drivefs@1.0.0/dist/drivefs.min.js',
+                'https://unpkg.com/drivefs@1.0.0/dist/drivefs.min.js',
+                'https://rawcdn.githack.com/simenkid/drivefs/v1.0.0/dist/drivefs.min.js'
+            ];
+            
+            let currentSource = 0;
+            
+            const tryNextSource = () => {
+                if (currentSource >= sources.length) {
+                    console.error('❌ Todas as fontes do DriveFS falharam');
+                    reject(new Error('Não foi possível carregar o DriveFS'));
+                    return;
+                }
+                
+                const source = sources[currentSource];
+                console.log(`📦 Tentando fonte ${currentSource + 1}/${sources.length}: ${source}`);
+                
+                const script = document.createElement('script');
+                script.src = source;
+                script.async = true;
+                script.defer = true;
+                
+                script.onload = () => {
+                    console.log(`✅ DriveFS carregado da fonte ${currentSource + 1}`);
+                    setTimeout(() => resolve(), 500); // Dar tempo para inicializar
+                };
+                
+                script.onerror = () => {
+                    console.warn(`⚠️ Falha ao carregar da fonte ${currentSource + 1}`);
+                    currentSource++;
+                    setTimeout(tryNextSource, 500);
+                };
+                
+                document.head.appendChild(script);
+            };
+            
+            tryNextSource();
+            
+            // Timeout geral
+            setTimeout(() => {
+                if (typeof DriveFS === 'undefined') {
+                    console.warn('⚠️ Timeout ao carregar DriveFS, continuando sem ele');
+                    reject(new Error('Timeout ao carregar DriveFS'));
+                }
+            }, 10000);
+        });
+    }
+    
+    initializeDriveFS() {
+        try {
+            if (typeof DriveFS === 'undefined') {
+                throw new Error('DriveFS não está disponível');
+            }
+            
             this.driveFS = new DriveFS({
                 clientId: this.config.clientId,
                 apiKey: this.config.apiKey,
-                appId: 'camarim-backup-system'
+                appId: 'camarim-backup-system-v1'
             });
+            
+            console.log('✅ DriveFS inicializado com sucesso');
             
             // Verificar se já está autenticado
             const token = localStorage.getItem('drivefs_token');
             if (token) {
                 this.isAuthenticated = true;
                 this.driveFS.setToken(token);
+                console.log('✅ Token existente encontrado');
             }
             
-            // Adicionar interface
-            setTimeout(() => this.addToInterface(), 500);
+            this.updateUI();
             
         } catch (error) {
-            console.error('Erro na inicialização:', error);
+            console.error('❌ Erro ao inicializar DriveFS:', error);
+            this.showFallbackUI();
         }
     }
     
-    loadDriveFSScript() {
-        return new Promise((resolve, reject) => {
-            // Verificar se já está carregado
-            if (typeof DriveFS !== 'undefined') {
-                resolve();
-                return;
-            }
-            
-            // Carregar script
-            const script = document.createElement('script');
-            script.src = 'https://unpkg.com/drivefs@latest/dist/drivefs.min.js';
-            script.async = true;
-            script.defer = true;
-            
-            script.onload = () => {
-                console.log('✅ DriveFS carregado');
-                resolve();
-            };
-            
-            script.onerror = (error) => {
-                console.error('❌ Erro ao carregar DriveFS:', error);
-                reject(new Error('Falha ao carregar DriveFS'));
-            };
-            
-            document.head.appendChild(script);
-        });
+    showFallbackUI() {
+        const content = document.getElementById('drivefs-backup-content');
+        if (!content) return;
+        
+        content.innerHTML = `
+            <div class="text-center py-4">
+                <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
+                <h4 class="mb-3">Backup Alternativo</h4>
+                <p class="text-muted mb-4">
+                    O sistema de backup automático não está disponível no momento.<br>
+                    Use o backup manual abaixo:
+                </p>
+                
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <h5><i class="fas fa-download mr-2"></i>Exportar Dados</h5>
+                        <p class="small text-muted">Salve um arquivo localmente no seu computador</p>
+                        <button class="btn btn-primary btn-block" onclick="window.driveBackup.exportLocal()">
+                            <i class="fas fa-file-export"></i> Exportar Backup (.json)
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-body">
+                        <h5><i class="fas fa-upload mr-2"></i>Importar Dados</h5>
+                        <p class="small text-muted">Restaurar dados de um arquivo salvo anteriormente</p>
+                        <div class="custom-file mb-3">
+                            <input type="file" class="custom-file-input" id="backup-file-input" accept=".json">
+                            <label class="custom-file-label" for="backup-file-input">Escolher arquivo .json</label>
+                        </div>
+                        <button class="btn btn-success btn-block" onclick="window.driveBackup.importLocal()">
+                            <i class="fas fa-file-import"></i> Importar Backup
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="mt-4">
+                    <button class="btn btn-sm btn-outline-secondary" onclick="location.reload()">
+                        <i class="fas fa-sync"></i> Tentar Novamente
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        // Configurar input de arquivo
+        const fileInput = document.getElementById('backup-file-input');
+        if (fileInput) {
+            fileInput.addEventListener('change', function(e) {
+                const fileName = e.target.files[0] ? e.target.files[0].name : 'Escolher arquivo .json';
+                const label = this.nextElementSibling;
+                label.textContent = fileName;
+            });
+        }
     }
     
     addToInterface() {
@@ -99,7 +205,8 @@ class DriveBackupSimple {
                         <div class="card-header" style="background: linear-gradient(135deg, #4285F4, #34A853);">
                             <h4 class="mb-0 text-white">
                                 <i class="fab fa-google-drive mr-2"></i> 
-                                Backup no Google Drive (Simples)
+                                Backup no Google Drive
+                                <span id="drive-status" class="badge badge-light ml-2">Carregando...</span>
                             </h4>
                         </div>
                         <div class="card-body">
@@ -108,7 +215,7 @@ class DriveBackupSimple {
                                     <div class="spinner-border text-primary" role="status">
                                         <span class="sr-only">Carregando...</span>
                                     </div>
-                                    <p class="mt-2">Inicializando...</p>
+                                    <p class="mt-2">Inicializando backup na nuvem...</p>
                                 </div>
                             </div>
                         </div>
@@ -123,8 +230,6 @@ class DriveBackupSimple {
                     databaseView.appendChild(driveSection);
                 }
                 
-                this.updateUI();
-                
             } else if (attempts < maxAttempts) {
                 attempts++;
                 setTimeout(tryAdd, 500);
@@ -136,7 +241,22 @@ class DriveBackupSimple {
     
     updateUI() {
         const content = document.getElementById('drivefs-backup-content');
+        const status = document.getElementById('drive-status');
+        
         if (!content) return;
+        
+        if (status) {
+            if (this.driveFS && this.isAuthenticated) {
+                status.className = 'badge badge-success ml-2';
+                status.textContent = 'Conectado';
+            } else if (this.driveFS) {
+                status.className = 'badge badge-warning ml-2';
+                status.textContent = 'Pronto';
+            } else {
+                status.className = 'badge badge-secondary ml-2';
+                status.textContent = 'Carregando...';
+            }
+        }
         
         content.innerHTML = '';
         
@@ -174,7 +294,12 @@ class DriveBackupSimple {
                 </div>
                 
                 <div id="drivefs-backup-list" class="mt-3">
-                    <!-- Lista de backups será carregada aqui -->
+                    <div class="text-center py-3">
+                        <div class="spinner-border spinner-border-sm text-primary" role="status">
+                            <span class="sr-only">Carregando...</span>
+                        </div>
+                        <span class="ml-2">Preparando lista...</span>
+                    </div>
                 </div>
             `;
             
@@ -184,42 +309,12 @@ class DriveBackupSimple {
         } else {
             content.innerHTML = `
                 <div class="text-center py-4">
-                    <i class="fab fa-google-drive fa-5x mb-4" style="color: #4285F4;"></i>
+                    <i class="fab fa-google-drive fa-4x mb-4" style="color: #4285F4;"></i>
                     <h4 class="mb-3">Backup Automático no Google Drive</h4>
                     <p class="text-muted mb-4">
                         Salve seus dados com segurança na nuvem.<br>
                         Acesso rápido e fácil com apenas 1 clique!
                     </p>
-                    
-                    <div class="row mb-4">
-                        <div class="col-md-4">
-                            <div class="card h-100 border-0 shadow-sm">
-                                <div class="card-body text-center">
-                                    <i class="fas fa-lock fa-2x text-primary mb-3"></i>
-                                    <h6>Segurança</h6>
-                                    <p class="small text-muted">Seus dados são privados</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="card h-100 border-0 shadow-sm">
-                                <div class="card-body text-center">
-                                    <i class="fas fa-bolt fa-2x text-success mb-3"></i>
-                                    <h6>Rápido</h6>
-                                    <p class="small text-muted">Backup em segundos</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="card h-100 border-0 shadow-sm">
-                                <div class="card-body text-center">
-                                    <i class="fas fa-sync fa-2x text-info mb-3"></i>
-                                    <h6>Automático</h6>
-                                    <p class="small text-muted">Restauração fácil</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
                     
                     <button class="btn btn-lg btn-success mb-3" onclick="window.driveBackup.login()" 
                             style="background: linear-gradient(135deg, #4285F4, #34A853); border: none; padding: 12px 30px;">
@@ -230,6 +325,22 @@ class DriveBackupSimple {
                         <i class="fas fa-info-circle text-info mr-2"></i>
                         <small>Você será redirecionado para o login do Google. Seus dados ficam armazenados apenas na sua conta.</small>
                     </div>
+                    
+                    <hr class="my-4">
+                    
+                    <h5 class="mb-3">Ou use backup local:</h5>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <button class="btn btn-outline-primary btn-block" onclick="window.driveBackup.exportLocal()">
+                                <i class="fas fa-download"></i> Exportar
+                            </button>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <button class="btn btn-outline-success btn-block" onclick="window.driveBackup.showImport()">
+                                <i class="fas fa-upload"></i> Importar
+                            </button>
+                        </div>
+                    </div>
                 </div>
             `;
         }
@@ -237,6 +348,11 @@ class DriveBackupSimple {
     
     async login() {
         try {
+            if (!this.driveFS) {
+                this.showAlert('DriveFS não está carregado. Tente recarregar a página.', 'error');
+                return;
+            }
+            
             this.isLoading = true;
             this.updateUI();
             
@@ -261,15 +377,27 @@ class DriveBackupSimple {
             console.error('❌ Erro no login:', error);
             this.isLoading = false;
             this.updateUI();
-            this.showAlert('❌ Erro ao conectar: ' + error.message, 'error');
+            
+            let errorMsg = error.message || 'Erro desconhecido';
+            
+            // Mensagens amigáveis
+            if (errorMsg.includes('popup')) {
+                errorMsg = 'O popup de login foi bloqueado. Por favor, permita popups para este site.';
+            } else if (errorMsg.includes('auth') || errorMsg.includes('access_denied')) {
+                errorMsg = 'Acesso negado. Por favor, permita as permissões solicitadas.';
+            }
+            
+            this.showAlert('❌ Erro ao conectar: ' + errorMsg, 'error');
         }
     }
     
     logout() {
         try {
-            this.driveFS.signOut();
-            localStorage.removeItem('drivefs_token');
+            if (this.driveFS) {
+                this.driveFS.signOut();
+            }
             
+            localStorage.removeItem('drivefs_token');
             this.isAuthenticated = false;
             
             console.log('✅ Logout realizado');
@@ -369,7 +497,7 @@ class DriveBackupSimple {
             
             // Listar arquivos com DriveFS
             const files = await this.driveFS.listFiles({
-                query: "name contains 'camarim-backup-' and mimeType='application/json' and trashed=false",
+                query: "name contains 'camarim-backup-' and trashed=false",
                 orderBy: 'createdTime desc',
                 maxResults: 10
             });
@@ -548,6 +676,126 @@ class DriveBackupSimple {
         }
     }
     
+    // Métodos de backup local (fallback)
+    exportLocal() {
+        try {
+            const systemData = window.systemData || {};
+            
+            if (Object.keys(systemData).length === 0) {
+                this.showAlert('Nenhum dado para exportar', 'warning');
+                return;
+            }
+            
+            const timestamp = new Date().toISOString().slice(0, 19).replace(/[:.]/g, '-');
+            const fileName = `camarim-backup-${timestamp}.json`;
+            const fileContent = JSON.stringify(systemData, null, 2);
+            
+            // Criar link de download
+            const blob = new Blob([fileContent], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            this.showAlert(`✅ Backup "${fileName}" exportado com sucesso!`, 'success');
+            
+        } catch (error) {
+            console.error('❌ Erro ao exportar:', error);
+            this.showAlert(`❌ Erro ao exportar backup: ${error.message}`, 'error');
+        }
+    }
+    
+    showImport() {
+        const content = document.getElementById('drivefs-backup-content');
+        if (!content) return;
+        
+        content.innerHTML = `
+            <div class="text-center py-4">
+                <h4 class="mb-3"><i class="fas fa-file-import text-success mr-2"></i>Importar Backup</h4>
+                
+                <div class="card">
+                    <div class="card-body">
+                        <p class="text-muted mb-4">
+                            Selecione um arquivo de backup (.json) para restaurar seus dados.
+                        </p>
+                        
+                        <div class="custom-file mb-4">
+                            <input type="file" class="custom-file-input" id="local-backup-file" accept=".json">
+                            <label class="custom-file-label" for="local-backup-file">Escolher arquivo .json</label>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <button class="btn btn-secondary" onclick="window.driveBackup.updateUI()">
+                                <i class="fas fa-arrow-left"></i> Voltar
+                            </button>
+                            <button class="btn btn-success" onclick="window.driveBackup.importLocal()">
+                                <i class="fas fa-upload"></i> Importar Backup
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Configurar input de arquivo
+        const fileInput = document.getElementById('local-backup-file');
+        if (fileInput) {
+            fileInput.addEventListener('change', function(e) {
+                const fileName = e.target.files[0] ? e.target.files[0].name : 'Escolher arquivo .json';
+                const label = this.nextElementSibling;
+                label.textContent = fileName;
+            });
+        }
+    }
+    
+    importLocal() {
+        const fileInput = document.getElementById('local-backup-file');
+        
+        if (!fileInput || !fileInput.files[0]) {
+            this.showAlert('Por favor, selecione um arquivo .json', 'warning');
+            return;
+        }
+        
+        const file = fileInput.files[0];
+        const reader = new FileReader();
+        
+        reader.onload = (e) => {
+            try {
+                const backupData = JSON.parse(e.target.result);
+                
+                if (!backupData || typeof backupData !== 'object') {
+                    throw new Error('Arquivo de backup inválido');
+                }
+                
+                if (!confirm('⚠️ ATENÇÃO!\n\nEsta ação substituirá TODOS os dados atuais.\n\nDeseja continuar?')) {
+                    return;
+                }
+                
+                // Restaurar dados
+                window.systemData = backupData;
+                localStorage.setItem('camarim-system-data', JSON.stringify(backupData));
+                
+                this.showAlert(
+                    `✅ Backup importado com sucesso!\n\n` +
+                    `• Produtos: ${backupData.products?.length || 0}\n` +
+                    `• Vendas: ${backupData.sales?.length || 0}\n\n` +
+                    `Recarregue a página para aplicar as mudanças.`,
+                    'success'
+                );
+                
+            } catch (error) {
+                console.error('❌ Erro ao importar:', error);
+                this.showAlert(`❌ Erro ao importar backup: ${error.message}`, 'error');
+            }
+        };
+        
+        reader.readAsText(file);
+    }
+    
     formatFileName(name) {
         return name
             .replace('camarim-backup-', '')
@@ -579,7 +827,7 @@ class DriveBackupSimple {
             alertDiv.innerHTML = `
                 <strong>${type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️'}</strong> 
                 ${message.replace(/\n/g, '<br>')}
-                <button type="button" class="close" data-dismiss="alert">
+                <button type="button" class="close" onclick="this.parentElement.remove()">
                     <span>&times;</span>
                 </button>
             `;
@@ -587,7 +835,9 @@ class DriveBackupSimple {
             document.body.appendChild(alertDiv);
             
             setTimeout(() => {
-                alertDiv.remove();
+                if (alertDiv.parentElement) {
+                    alertDiv.remove();
+                }
             }, 5000);
         }
     }
