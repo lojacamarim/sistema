@@ -59,7 +59,14 @@ async function initGoogleDrive() {
             return false;
         }
         
+        // Verificar se já estamos inicializados
+        if (driveState.apiLoaded && driveState.isAuthenticated) {
+            console.log('✅ Google Drive já inicializado e autenticado');
+            return true;
+        }
+        
         // Carregar a API do Google de forma assíncrona
+        console.log('🔄 Etapa 1: Carregando Google API...');
         await loadGoogleApiAsync();
         
         if (!driveState.gapiReady) {
@@ -70,16 +77,31 @@ async function initGoogleDrive() {
         }
         
         // Inicializar cliente do Google
+        console.log('🔄 Etapa 2: Inicializando cliente Google...');
         await initGoogleClient();
         
+        if (!driveState.apiLoaded) {
+            throw new Error('Falha ao inicializar cliente Google');
+        }
+        
         // Verificar autenticação existente
+        console.log('🔄 Etapa 3: Verificando autenticação...');
         await checkExistingAuth();
+        
+        console.log('✅ Google Drive inicializado com sucesso');
+        console.log(`📊 Status: ${driveState.isAuthenticated ? 'Autenticado' : 'Não autenticado'}`);
         
         return driveState.isAuthenticated;
         
     } catch (error) {
         console.error('❌ Erro crítico ao inicializar Google Drive:', error);
         driveState.error = error.message || 'Erro desconhecido ao inicializar Google Drive';
+        
+        // Mensagem mais amigável para o usuário
+        if (error.message.includes('gapi.client') || error.message.includes('setApiKey')) {
+            driveState.error = 'Erro na inicialização da API. Tente recarregar a página.';
+        }
+        
         updateDriveStatusUI();
         return false;
     }
@@ -90,9 +112,9 @@ async function initGoogleDrive() {
  */
 function loadGoogleApiAsync() {
     return new Promise((resolve, reject) => {
-        // Verificar se já carregou
-        if (window.gapi && window.gapi.load) {
-            console.log('✅ Google API já disponível');
+        // Verificar se já carregou completamente
+        if (window.gapi && window.gapi.load && window.gapi.client) {
+            console.log('✅ Google API já disponível e pronta');
             driveState.gapiReady = true;
             resolve();
             return;
@@ -100,19 +122,44 @@ function loadGoogleApiAsync() {
         
         console.log('🔄 Carregando Google API...');
         
+        // Se gapi já existe mas não está completo
+        if (window.gapi && !window.gapi.load) {
+            console.log('⚠️ gapi existe mas não está completo, recarregando...');
+            delete window.gapi;
+        }
+        
         // Criar elemento script
         const script = document.createElement('script');
         script.src = 'https://apis.google.com/js/api.js';
         script.async = true;
         script.defer = true;
         
+        let timeoutId;
+        
         script.onload = () => {
-            console.log('✅ Google API carregada com sucesso');
-            driveState.gapiReady = true;
-            resolve();
+            clearTimeout(timeoutId);
+            console.log('✅ Script da Google API carregado');
+            
+            // Aguardar que gapi esteja disponível
+            const checkGapi = () => {
+                if (window.gapi && window.gapi.load) {
+                    console.log('✅ Google API pronta para uso');
+                    driveState.gapiReady = true;
+                    
+                    // Adicionar timeout para garantir que tudo esteja carregado
+                    setTimeout(() => {
+                        resolve();
+                    }, 100);
+                } else {
+                    setTimeout(checkGapi, 100);
+                }
+            };
+            
+            setTimeout(checkGapi, 100);
         };
         
         script.onerror = () => {
+            clearTimeout(timeoutId);
             console.error('❌ Falha ao carregar Google API');
             driveState.error = 'Falha ao carregar API do Google. Verifique sua conexão.';
             reject(new Error('Falha ao carregar Google API'));
@@ -121,12 +168,12 @@ function loadGoogleApiAsync() {
         document.head.appendChild(script);
         
         // Timeout de segurança
-        setTimeout(() => {
+        timeoutId = setTimeout(() => {
+            console.warn('⚠️ Timeout ao carregar Google API');
             if (!driveState.gapiReady) {
-                console.warn('⚠️ Timeout ao carregar Google API');
                 reject(new Error('Timeout ao carregar Google API'));
             }
-        }, 10000);
+        }, 15000);
     });
 }
 
@@ -137,34 +184,100 @@ async function initGoogleClient() {
     try {
         console.log('🔧 Inicializando cliente Google...');
         
-        // Configuração mínima para evitar erro de discovery
-        await gapi.client.init({
-            apiKey: GOOGLE_DRIVE_CONFIG.apiKey || '',
-            clientId: GOOGLE_DRIVE_CONFIG.clientId,
-            discoveryDocs: GOOGLE_DRIVE_CONFIG.discoveryDocs,
-            scope: GOOGLE_DRIVE_CONFIG.scope
-        });
+        // AGUARDAR até que gapi.client esteja disponível
+        let attempts = 0;
+        while (!gapi.client && attempts < 10) {
+            console.log(`⏳ Aguardando gapi.client (tentativa ${attempts + 1}/10)...`);
+            await new Promise(resolve => setTimeout(resolve, 500));
+            attempts++;
+        }
         
-        console.log('✅ Cliente Google inicializado com sucesso');
-        driveState.apiLoaded = true;
+        if (!gapi.client) {
+            throw new Error('gapi.client não está disponível após várias tentativas');
+        }
+        
+        // AGUARDAR a função load
+        attempts = 0;
+        while (!gapi.client.load && attempts < 10) {
+            console.log(`⏳ Aguardando gapi.client.load (tentativa ${attempts + 1}/10)...`);
+            await new Promise(resolve => setTimeout(resolve, 500));
+            attempts++;
+        }
+        
+        // Abordagem 1: Inicialização padrão
+        try {
+            await gapi.client.init({
+                apiKey: GOOGLE_DRIVE_CONFIG.apiKey || '',
+                clientId: GOOGLE_DRIVE_CONFIG.clientId,
+                discoveryDocs: GOOGLE_DRIVE_CONFIG.discoveryDocs,
+                scope: GOOGLE_DRIVE_CONFIG.scope
+            });
+            
+            console.log('✅ Cliente Google inicializado com sucesso (abordagem padrão)');
+            driveState.apiLoaded = true;
+            return;
+            
+        } catch (initError) {
+            console.warn('⚠️ Erro na inicialização padrão, tentando abordagem alternativa...', initError);
+            
+            // Abordagem 2: Inicialização manual
+            try {
+                // Carregar a API do Drive primeiro
+                await new Promise((resolve, reject) => {
+                    gapi.load('client:auth2', {
+                        callback: resolve,
+                        onerror: reject,
+                        timeout: 10000,
+                        ontimeout: () => reject(new Error('Timeout ao carregar cliente'))
+                    });
+                });
+                
+                // Configurar após o load
+                if (GOOGLE_DRIVE_CONFIG.apiKey) {
+                    gapi.client.setApiKey(GOOGLE_DRIVE_CONFIG.apiKey);
+                }
+                
+                // Inicializar auth2
+                await gapi.auth2.init({
+                    client_id: GOOGLE_DRIVE_CONFIG.clientId,
+                    scope: GOOGLE_DRIVE_CONFIG.scope
+                });
+                
+                // Carregar API do Drive manualmente
+                await gapi.client.load('drive', 'v3');
+                
+                console.log('✅ Cliente Google inicializado (abordagem alternativa)');
+                driveState.apiLoaded = true;
+                
+            } catch (altError) {
+                console.error('❌ Erro na abordagem alternativa:', altError);
+                
+                // Abordagem 3: Tentativa mais básica
+                try {
+                    // Tentar carregar apenas o cliente básico
+                    await gapi.load('client');
+                    
+                    // Configurar chaves
+                    if (GOOGLE_DRIVE_CONFIG.apiKey) {
+                        gapi.client.setApiKey(GOOGLE_DRIVE_CONFIG.apiKey);
+                    }
+                    
+                    // Carregar Drive API
+                    await gapi.client.load('https://content.googleapis.com/discovery/v1/apis/drive/v3/rest');
+                    
+                    console.log('✅ Cliente Google inicializado (abordagem básica)');
+                    driveState.apiLoaded = true;
+                    
+                } catch (basicError) {
+                    console.error('❌ Erro na abordagem básica:', basicError);
+                    throw new Error(`Não foi possível inicializar a API do Google: ${basicError.message}`);
+                }
+            }
+        }
         
     } catch (error) {
-        console.warn('⚠️ Erro na inicialização padrão, tentando abordagem alternativa...', error);
-        
-        // Abordagem alternativa: inicialização mínima
-        try {
-            gapi.client.setApiKey(GOOGLE_DRIVE_CONFIG.apiKey || '');
-            
-            // Carregar API do Drive manualmente
-            await gapi.client.load('drive', 'v3');
-            
-            console.log('✅ Cliente Google inicializado (abordagem alternativa)');
-            driveState.apiLoaded = true;
-            
-        } catch (altError) {
-            console.error('❌ Erro na abordagem alternativa:', altError);
-            throw new Error(`Não foi possível inicializar a API do Google: ${altError.message}`);
-        }
+        console.error('❌ Erro crítico ao inicializar cliente Google:', error);
+        throw error;
     }
 }
 
