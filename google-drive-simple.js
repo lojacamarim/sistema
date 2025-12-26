@@ -38,6 +38,37 @@ class GoogleDriveBackupSimple {
         }
     }
     
+    // ADICIONADO: Método para esperar API do Drive carregar
+    async waitForGapi() {
+        return new Promise((resolve, reject) => {
+            let attempts = 0;
+            const maxAttempts = 30; // 30 tentativas de 100ms = 3 segundos
+            
+            const checkGapi = () => {
+                attempts++;
+                
+                // Verificar se gapi está carregado E se a API drive está disponível
+                if (window.gapi && 
+                    window.gapi.client && 
+                    window.gapi.client.drive && 
+                    window.gapi.client.drive.files) {
+                    console.log('✅ GAPI Drive API carregada após', attempts, 'tentativas');
+                    resolve();
+                    return;
+                }
+                
+                if (attempts >= maxAttempts) {
+                    reject(new Error('Timeout: GAPI Drive API não carregou após 3 segundos'));
+                    return;
+                }
+                
+                setTimeout(checkGapi, 100);
+            };
+            
+            checkGapi();
+        });
+    }
+    
     loadGoogleScripts() {
         return new Promise((resolve, reject) => {
             // Verificar se já carregou
@@ -95,67 +126,77 @@ class GoogleDriveBackupSimple {
         });
     }
     
-   initializeApis() {
-    // Inicializar GAPI
-    if (window.gapi && window.gapi.load) {
-        gapi.load('client', async () => {
-            try {
-                await gapi.client.init({
-                    apiKey: this.config.apiKey,
-                    discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
-                });
-                
-                console.log('✅ GAPI inicializada');
-                
-                // Verificar token existente
-                this.checkExistingToken();
-                
-            } catch (error) {
-                console.error('Erro ao inicializar GAPI:', error);
-                this.showAlert('Erro ao inicializar API do Google. Recarregue a página.', 'error');
-            }
-        });
-    }
-    
-    // Inicializar Google Identity Services (CRÍTICO - deve ser feito DEPOIS do script carregar)
-    if (window.google && window.google.accounts && window.google.accounts.oauth2) {
-        this.state.tokenClient = google.accounts.oauth2.initTokenClient({
-            client_id: this.config.clientId,
-            scope: this.config.scope,
-            callback: (response) => {
-                console.log('🔑 Callback do token chamado:', response);
-                
-                if (response.error) {
-                    console.error('Erro no token:', response);
-                    this.state.isLoading = false;
-                    this.updateUI();
-                    return;
+    initializeApis() {
+        // Inicializar GAPI
+        if (window.gapi && window.gapi.load) {
+            gapi.load('client', async () => {
+                try {
+                    await gapi.client.init({
+                        apiKey: this.config.apiKey,
+                        discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
+                    });
+                    
+                    console.log('✅ GAPI inicializada');
+                    
+                    // Verificar token existente
+                    this.checkExistingToken();
+                    
+                } catch (error) {
+                    console.error('Erro ao inicializar GAPI:', error);
+                    this.showAlert('Erro ao inicializar API do Google. Recarregue a página.', 'error');
                 }
-                
-                // Token recebido com sucesso
-                this.state.accessToken = response.access_token;
-                this.state.isAuthenticated = true;
-                this.state.isLoading = false;
-                
-                // Salvar token
-                localStorage.setItem('google_drive_token', response.access_token);
-                localStorage.setItem('google_drive_token_expiry', (Date.now() + 3600000).toString());
-                
-                console.log('✅ Token salvo:', response.access_token.substring(0, 20) + '...');
-                
-                this.updateUI();
-                this.showAlert('Conectado ao Google Drive com sucesso!', 'success');
-                
-                // Carregar lista de backups
-                this.loadBackupList();
-            }
-        });
+            });
+        }
         
-        console.log('✅ Token Client inicializado');
-    } else {
-        console.error('❌ Google Identity Services não disponível');
+        // Inicializar Google Identity Services (CRÍTICO - deve ser feito DEPOIS do script carregar)
+        if (window.google && window.google.accounts && window.google.accounts.oauth2) {
+            this.state.tokenClient = google.accounts.oauth2.initTokenClient({
+                client_id: this.config.clientId,
+                scope: this.config.scope,
+                callback: (response) => {
+                    console.log('🔑 Callback do token chamado:', response);
+                    
+                    if (response.error) {
+                        console.error('Erro no token:', response);
+                        this.state.isLoading = false;
+                        this.updateUI();
+                        return;
+                    }
+                    
+                    // Token recebido com sucesso
+                    this.state.accessToken = response.access_token;
+                    this.state.isAuthenticated = true;
+                    this.state.isLoading = false;
+                    
+                    // Salvar token
+                    localStorage.setItem('google_drive_token', response.access_token);
+                    localStorage.setItem('google_drive_token_expiry', (Date.now() + 3600000).toString());
+                    
+                    console.log('✅ Token salvo:', response.access_token.substring(0, 20) + '...');
+                    
+                    this.updateUI();
+                    this.showAlert('Conectado ao Google Drive com sucesso!', 'success');
+                    
+                    // MODIFICADO: Aguardar API do Drive carregar ANTES de tentar usar
+                    setTimeout(async () => {
+                        try {
+                            await this.waitForGapi();
+                            console.log('✅ API do Drive carregada após login');
+                            // Carregar lista de backups
+                            this.loadBackupList();
+                        } catch (error) {
+                            console.error('❌ Não foi possível carregar API do Drive:', error);
+                            this.showAlert('Erro ao carregar API do Google Drive. Tente atualizar a página.', 'error');
+                        }
+                    }, 1000);
+                }
+            });
+            
+            console.log('✅ Token Client inicializado');
+        } else {
+            console.error('❌ Google Identity Services não disponível');
+        }
     }
-}
     
     checkExistingToken() {
         const token = localStorage.getItem('google_drive_token');
@@ -165,6 +206,17 @@ class GoogleDriveBackupSimple {
             console.log('✅ Token existente encontrado');
             this.state.accessToken = token;
             this.state.isAuthenticated = true;
+            
+            // MODIFICADO: Tentar inicializar a API do Drive quando temos token
+            setTimeout(async () => {
+                try {
+                    await this.waitForGapi();
+                    console.log('✅ API do Drive inicializada após token existente');
+                } catch (error) {
+                    console.warn('⚠️ Não foi possível inicializar API do Drive:', error);
+                }
+            }, 1000);
+            
             this.updateUI();
         } else {
             // Token expirado ou não existe
@@ -461,188 +513,191 @@ class GoogleDriveBackupSimple {
         }
     }
     
-async getOrCreateFolder() {
-    try {
-        // Verificar se GAPI está inicializado
-        if (!gapi.client || !gapi.client.drive) {
-            throw new Error('API do Drive não inicializada');
-        }
-        
-        // Buscar pasta existente
-        const response = await gapi.client.drive.files.list({
-            q: "mimeType='application/vnd.google-apps.folder' and name='Camarim-Backups' and trashed=false",
-            fields: 'files(id, name)',
-            spaces: 'drive'
-        });
-        
-        // Verificar resposta
-        if (!response || !response.result) {
-            throw new Error('Resposta inválida da API');
-        }
-        
-        if (response.result.files && response.result.files.length > 0) {
-            console.log('✅ Pasta encontrada:', response.result.files[0].id);
-            return response.result.files[0].id;
-        }
-        
-        // Criar nova pasta
-        console.log('📁 Criando pasta...');
-        const createResponse = await gapi.client.drive.files.create({
-            resource: {
-                name: 'Camarim-Backups',
-                mimeType: 'application/vnd.google-apps.folder',
-                description: 'Backups automáticos do sistema Camarim'
-            },
-            fields: 'id'
-        });
-        
-        if (!createResponse || !createResponse.result) {
-            throw new Error('Erro ao criar pasta');
-        }
-        
-        console.log('✅ Pasta criada:', createResponse.result.id);
-        return createResponse.result.id;
-        
-    } catch (error) {
-        console.error('❌ Erro na pasta:', error);
-        
-        // Tentar novamente se for erro de autenticação
-        if (error.status === 401 || error.message?.includes('auth')) {
-            console.log('🔑 Token expirado, fazendo logout...');
-            this.logout();
-        }
-        
-        throw error;
-    }
-}
-    
-async loadBackupList() {
-    const container = document.getElementById('backup-list-container');
-    if (!container) return;
-    
-    try {
-        if (!this.state.isAuthenticated) {
-            container.innerHTML = `
-                <div class="alert alert-warning">
-                    <i class="fas fa-exclamation-triangle"></i> Conecte-se para ver backups
-                </div>
-            `;
-            return;
-        }
-        
-        // Verificar se o token ainda é válido
-        if (!this.state.accessToken) {
-            this.logout();
-            return;
-        }
-        
-        // Primeiro obter a pasta
-        const folderId = await this.getOrCreateFolder();
-        
-        // Fazer a requisição com tratamento de erro melhorado
-        let response;
+    async getOrCreateFolder() {
         try {
-            response = await gapi.client.drive.files.list({
-                q: `'${folderId}' in parents and name contains 'camarim-backup-' and mimeType='application/json' and trashed=false`,
-                fields: 'files(id, name, createdTime, size, description)',
-                orderBy: 'createdTime desc',
-                pageSize: 10
-            });
-        } catch (apiError) {
-            console.error('❌ Erro na API do Drive:', apiError);
+            // MODIFICADO: ESPERAR pela API do Drive carregar
+            await this.waitForGapi();
             
-            // Verificar se o token expirou
-            if (apiError.status === 401 || apiError.message?.includes('token') || apiError.message?.includes('auth')) {
+            // Verificar se GAPI está inicializado
+            if (!gapi.client || !gapi.client.drive) {
+                throw new Error('API do Drive não inicializada - gapi.client.drive não disponível');
+            }
+            
+            // Buscar pasta existente
+            const response = await gapi.client.drive.files.list({
+                q: "mimeType='application/vnd.google-apps.folder' and name='Camarim-Backups' and trashed=false",
+                fields: 'files(id, name)',
+                spaces: 'drive'
+            });
+            
+            // Verificar resposta
+            if (!response || !response.result) {
+                throw new Error('Resposta inválida da API');
+            }
+            
+            if (response.result.files && response.result.files.length > 0) {
+                console.log('✅ Pasta encontrada:', response.result.files[0].id);
+                return response.result.files[0].id;
+            }
+            
+            // Criar nova pasta
+            console.log('📁 Criando pasta...');
+            const createResponse = await gapi.client.drive.files.create({
+                resource: {
+                    name: 'Camarim-Backups',
+                    mimeType: 'application/vnd.google-apps.folder',
+                    description: 'Backups automáticos do sistema Camarim'
+                },
+                fields: 'id'
+            });
+            
+            if (!createResponse || !createResponse.result) {
+                throw new Error('Erro ao criar pasta');
+            }
+            
+            console.log('✅ Pasta criada:', createResponse.result.id);
+            return createResponse.result.id;
+            
+        } catch (error) {
+            console.error('❌ Erro na pasta:', error);
+            
+            // Tentar novamente se for erro de autenticação
+            if (error.status === 401 || error.message?.includes('auth')) {
                 console.log('🔑 Token expirado, fazendo logout...');
+                this.logout();
+            }
+            
+            throw error;
+        }
+    }
+    
+    async loadBackupList() {
+        const container = document.getElementById('backup-list-container');
+        if (!container) return;
+        
+        try {
+            if (!this.state.isAuthenticated) {
+                container.innerHTML = `
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i> Conecte-se para ver backups
+                    </div>
+                `;
+                return;
+            }
+            
+            // Verificar se o token ainda é válido
+            if (!this.state.accessToken) {
                 this.logout();
                 return;
             }
             
-            throw apiError;
-        }
-        
-        // Verificar se a resposta é válida
-        if (!response || !response.result) {
-            throw new Error('Resposta inválida da API do Drive');
-        }
-        
-        const backups = response.result.files || [];
-        
-        if (backups.length === 0) {
+            // Primeiro obter a pasta
+            const folderId = await this.getOrCreateFolder();
+            
+            // Fazer a requisição com tratamento de erro melhorado
+            let response;
+            try {
+                response = await gapi.client.drive.files.list({
+                    q: `'${folderId}' in parents and name contains 'camarim-backup-' and mimeType='application/json' and trashed=false`,
+                    fields: 'files(id, name, createdTime, size, description)',
+                    orderBy: 'createdTime desc',
+                    pageSize: 10
+                });
+            } catch (apiError) {
+                console.error('❌ Erro na API do Drive:', apiError);
+                
+                // Verificar se o token expirou
+                if (apiError.status === 401 || apiError.message?.includes('token') || apiError.message?.includes('auth')) {
+                    console.log('🔑 Token expirado, fazendo logout...');
+                    this.logout();
+                    return;
+                }
+                
+                throw apiError;
+            }
+            
+            // Verificar se a resposta é válida
+            if (!response || !response.result) {
+                throw new Error('Resposta inválida da API do Drive');
+            }
+            
+            const backups = response.result.files || [];
+            
+            if (backups.length === 0) {
+                container.innerHTML = `
+                    <div class="alert alert-info">
+                        <i class="fas fa-cloud-upload-alt"></i> 
+                        Nenhum backup encontrado. Crie seu primeiro backup!
+                    </div>
+                `;
+                return;
+            }
+            
             container.innerHTML = `
-                <div class="alert alert-info">
-                    <i class="fas fa-cloud-upload-alt"></i> 
-                    Nenhum backup encontrado. Crie seu primeiro backup!
-                </div>
-            `;
-            return;
-        }
-        
-        container.innerHTML = `
-            <h6 class="border-bottom pb-2 mb-3">Backups Disponíveis (${backups.length})</h6>
-            <div class="list-group">
-                ${backups.map((backup, index) => `
-                <div class="list-group-item ${index === 0 ? 'border-primary' : ''}">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div class="flex-grow-1">
-                            <div class="d-flex align-items-center mb-1">
-                                <i class="fas fa-file-alt mr-2 text-primary"></i>
-                                <strong>${this.formatFileName(backup.name)}</strong>
-                                ${index === 0 ? '<span class="badge badge-success ml-2">Mais recente</span>' : ''}
+                <h6 class="border-bottom pb-2 mb-3">Backups Disponíveis (${backups.length})</h6>
+                <div class="list-group">
+                    ${backups.map((backup, index) => `
+                    <div class="list-group-item ${index === 0 ? 'border-primary' : ''}">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="flex-grow-1">
+                                <div class="d-flex align-items-center mb-1">
+                                    <i class="fas fa-file-alt mr-2 text-primary"></i>
+                                    <strong>${this.formatFileName(backup.name)}</strong>
+                                    ${index === 0 ? '<span class="badge badge-success ml-2">Mais recente</span>' : ''}
+                                </div>
+                                <div class="small text-muted mb-1">
+                                    <i class="far fa-calendar-alt mr-1"></i>
+                                    ${new Date(backup.createdTime).toLocaleString('pt-BR')}
+                                    ${backup.size ? ` • <i class="fas fa-hdd mr-1"></i>${this.formatBytes(backup.size)}` : ''}
+                                </div>
+                                ${backup.description ? `<div class="small text-muted"><em>${backup.description}</em></div>` : ''}
                             </div>
-                            <div class="small text-muted mb-1">
-                                <i class="far fa-calendar-alt mr-1"></i>
-                                ${new Date(backup.createdTime).toLocaleString('pt-BR')}
-                                ${backup.size ? ` • <i class="fas fa-hdd mr-1"></i>${this.formatBytes(backup.size)}` : ''}
+                            <div class="ml-3">
+                                <button class="btn btn-sm btn-success" onclick="window.driveBackupSimple.restoreBackup('${backup.id}')" 
+                                        title="Restaurar este backup">
+                                    <i class="fas fa-undo"></i>
+                                </button>
+                                ${index !== 0 ? `
+                                <button class="btn btn-sm btn-danger ml-1" onclick="window.driveBackupSimple.deleteBackup('${backup.id}')" 
+                                        title="Excluir backup antigo">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                                ` : ''}
                             </div>
-                            ${backup.description ? `<div class="small text-muted"><em>${backup.description}</em></div>` : ''}
-                        </div>
-                        <div class="ml-3">
-                            <button class="btn btn-sm btn-success" onclick="window.driveBackupSimple.restoreBackup('${backup.id}')" 
-                                    title="Restaurar este backup">
-                                <i class="fas fa-undo"></i>
-                            </button>
-                            ${index !== 0 ? `
-                            <button class="btn btn-sm btn-danger ml-1" onclick="window.driveBackupSimple.deleteBackup('${backup.id}')" 
-                                    title="Excluir backup antigo">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                            ` : ''}
                         </div>
                     </div>
+                    `).join('')}
                 </div>
-                `).join('')}
-            </div>
-        `;
-        
-    } catch (error) {
-        console.error('❌ Erro ao carregar backups:', error);
-        
-        let errorMessage = error.message || 'Erro desconhecido';
-        
-        // Mensagens mais amigáveis
-        if (errorMessage.includes('Network Error')) {
-            errorMessage = 'Erro de conexão. Verifique sua internet.';
-        } else if (errorMessage.includes('auth') || errorMessage.includes('token')) {
-            errorMessage = 'Sessão expirada. Por favor, faça login novamente.';
-            this.logout();
-        } else if (errorMessage.includes('quota')) {
-            errorMessage = 'Cota do Google Drive excedida.';
+            `;
+            
+        } catch (error) {
+            console.error('❌ Erro ao carregar backups:', error);
+            
+            let errorMessage = error.message || 'Erro desconhecido';
+            
+            // Mensagens mais amigáveis
+            if (errorMessage.includes('Network Error')) {
+                errorMessage = 'Erro de conexão. Verifique sua internet.';
+            } else if (errorMessage.includes('auth') || errorMessage.includes('token')) {
+                errorMessage = 'Sessão expirada. Por favor, faça login novamente.';
+                this.logout();
+            } else if (errorMessage.includes('quota')) {
+                errorMessage = 'Cota do Google Drive excedida.';
+            }
+            
+            container.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle"></i> 
+                    Erro ao carregar backups: ${errorMessage}
+                    <div class="mt-2">
+                        <button class="btn btn-sm btn-warning" onclick="window.driveBackupSimple.refreshBackupList()">
+                            <i class="fas fa-sync"></i> Tentar novamente
+                        </button>
+                    </div>
+                </div>
+            `;
         }
-        
-        container.innerHTML = `
-            <div class="alert alert-danger">
-                <i class="fas fa-exclamation-triangle"></i> 
-                Erro ao carregar backups: ${errorMessage}
-                <div class="mt-2">
-                    <button class="btn btn-sm btn-warning" onclick="window.driveBackupSimple.refreshBackupList()">
-                        <i class="fas fa-sync"></i> Tentar novamente
-                    </button>
-                </div>
-            </div>
-        `;
     }
-}
     
     refreshBackupList() {
         console.log('🔄 Atualizando lista...');
@@ -660,6 +715,9 @@ async loadBackupList() {
             this.updateUI();
             
             console.log(`🔄 Restaurando backup: ${fileId}`);
+            
+            // MODIFICADO: Aguardar API carregar antes de restaurar
+            await this.waitForGapi();
             
             const response = await gapi.client.drive.files.get({
                 fileId: fileId,
@@ -711,6 +769,9 @@ async loadBackupList() {
         }
         
         try {
+            // MODIFICADO: Aguardar API carregar antes de deletar
+            await this.waitForGapi();
+            
             await gapi.client.drive.files.delete({
                 fileId: fileId
             });
