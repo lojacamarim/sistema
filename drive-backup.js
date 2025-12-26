@@ -5,12 +5,8 @@
 
 // Configurações do Google Drive API
 const GOOGLE_DRIVE_CONFIG = {
-    // Você precisa configurar suas próprias credenciais:
-    // 1. Vá para https://console.developers.google.com/
-    // 2. Crie um projeto e ative a Google Drive API
-    // 3. Crie credenciais OAuth 2.0 Client ID
-    apiKey: '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', // Deixe vazio inicialmente, pode ser opcional
-    clientId: '821978818510-oo69bs0uln83avvst0obpjmq9amgtg8c.apps.googleusercontent.com', // Seu Client ID do Google Cloud Console
+    apiKey: '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',
+    clientId: '821978818510-oo69bs0uln83avvst0obpjmq9amgtg8c.apps.googleusercontent.com',
     discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
     scope: 'https://www.googleapis.com/auth/drive.file',
     folderName: 'Camarim-Backups',
@@ -18,13 +14,12 @@ const GOOGLE_DRIVE_CONFIG = {
     fileExtension: '.json',
     maxBackupFiles: 20,
     
-    // URLs de redirecionamento (configure no Google Cloud Console)
     redirectUris: [
-        'http://localhost',          // Para desenvolvimento
-        'http://localhost:5500',     // Live Server padrão
-        'http://127.0.0.1:5500',    // Live Server alternativo
-        'http://localhost:8080',     // Outra porta comum
-        window.location.origin       // URL atual
+        'http://localhost',
+        'http://localhost:5500',
+        'http://127.0.0.1:5500',
+        'http://localhost:8080',
+        window.location.origin
     ]
 };
 
@@ -41,31 +36,25 @@ const driveState = {
 };
 
 // ============================================
-// 1. INICIALIZAÇÃO DO GOOGLE DRIVE (CORRIGIDA)
+// INICIALIZAÇÃO DO GOOGLE DRIVE
 // ============================================
 
-/**
- * Inicializa a API do Google Drive de forma mais robusta
- */
 async function initGoogleDrive() {
     console.log('🚀 Inicializando Google Drive Backup System...');
     
     try {
-        // Verificar se as credenciais estão configuradas
         if (!GOOGLE_DRIVE_CONFIG.clientId) {
-            console.warn('⚠️ Client ID não configurado. Configure suas credenciais do Google Drive.');
+            console.warn('⚠️ Client ID não configurado.');
             driveState.error = 'Client ID do Google Drive não configurado. Configure no arquivo drive-backup.js';
             updateDriveStatusUI();
             return false;
         }
         
-        // Verificar se já estamos inicializados
         if (driveState.apiLoaded && driveState.isAuthenticated) {
             console.log('✅ Google Drive já inicializado e autenticado');
             return true;
         }
         
-        // Carregar a API do Google de forma assíncrona
         console.log('🔄 Etapa 1: Carregando Google API...');
         await loadGoogleApiAsync();
         
@@ -76,7 +65,6 @@ async function initGoogleDrive() {
             return false;
         }
         
-        // Inicializar cliente do Google
         console.log('🔄 Etapa 2: Inicializando cliente Google...');
         await initGoogleClient();
         
@@ -84,7 +72,6 @@ async function initGoogleDrive() {
             throw new Error('Falha ao inicializar cliente Google');
         }
         
-        // Verificar autenticação existente
         console.log('🔄 Etapa 3: Verificando autenticação...');
         await checkExistingAuth();
         
@@ -97,7 +84,6 @@ async function initGoogleDrive() {
         console.error('❌ Erro crítico ao inicializar Google Drive:', error);
         driveState.error = error.message || 'Erro desconhecido ao inicializar Google Drive';
         
-        // Mensagem mais amigável para o usuário
         if (error.message.includes('gapi.client') || error.message.includes('setApiKey')) {
             driveState.error = 'Erro na inicialização da API. Tente recarregar a página.';
         }
@@ -107,14 +93,10 @@ async function initGoogleDrive() {
     }
 }
 
-/**
- * Carrega a API do Google de forma assíncrona e segura
- */
 function loadGoogleApiAsync() {
     return new Promise((resolve, reject) => {
-        // Verificar se já carregou completamente
-        if (window.gapi && window.gapi.load && window.gapi.client) {
-            console.log('✅ Google API já disponível e pronta');
+        if (window.gapi && window.gapi.load) {
+            console.log('✅ Google API já disponível');
             driveState.gapiReady = true;
             resolve();
             return;
@@ -122,90 +104,74 @@ function loadGoogleApiAsync() {
         
         console.log('🔄 Carregando Google API...');
         
-        // Se gapi já existe mas não está completo
-        if (window.gapi && !window.gapi.load) {
-            console.log('⚠️ gapi existe mas não está completo, recarregando...');
-            delete window.gapi;
+        if (window.__gapiLoadingPromise) {
+            console.log('📦 Google API já está sendo carregada, aguardando...');
+            window.__gapiLoadingPromise.then(resolve).catch(reject);
+            return;
         }
         
-        // Criar elemento script
         const script = document.createElement('script');
         script.src = 'https://apis.google.com/js/api.js';
         script.async = true;
         script.defer = true;
         
-        let timeoutId;
-        
-        script.onload = () => {
-            clearTimeout(timeoutId);
-            console.log('✅ Script da Google API carregado');
-            
-            // Aguardar que gapi esteja disponível
-            const checkGapi = () => {
-                if (window.gapi && window.gapi.load) {
-                    console.log('✅ Google API pronta para uso');
-                    driveState.gapiReady = true;
-                    
-                    // Adicionar timeout para garantir que tudo esteja carregado
-                    setTimeout(() => {
-                        resolve();
-                    }, 100);
-                } else {
-                    setTimeout(checkGapi, 100);
-                }
+        window.__gapiLoadingPromise = new Promise((scriptResolve, scriptReject) => {
+            script.onload = () => {
+                console.log('✅ Script da Google API carregado');
+                
+                const checkGapi = () => {
+                    if (window.gapi && window.gapi.load) {
+                        console.log('✅ Google API completamente carregada');
+                        driveState.gapiReady = true;
+                        scriptResolve();
+                    } else {
+                        setTimeout(checkGapi, 100);
+                    }
+                };
+                
+                setTimeout(checkGapi, 100);
             };
             
-            setTimeout(checkGapi, 100);
-        };
-        
-        script.onerror = () => {
-            clearTimeout(timeoutId);
-            console.error('❌ Falha ao carregar Google API');
-            driveState.error = 'Falha ao carregar API do Google. Verifique sua conexão.';
-            reject(new Error('Falha ao carregar Google API'));
-        };
+            script.onerror = () => {
+                console.error('❌ Falha ao carregar Google API');
+                delete window.__gapiLoadingPromise;
+                scriptReject(new Error('Falha ao carregar API do Google'));
+            };
+        });
         
         document.head.appendChild(script);
         
-        // Timeout de segurança
-        timeoutId = setTimeout(() => {
-            console.warn('⚠️ Timeout ao carregar Google API');
+        setTimeout(() => {
             if (!driveState.gapiReady) {
+                console.warn('⚠️ Timeout ao carregar Google API');
+                delete window.__gapiLoadingPromise;
                 reject(new Error('Timeout ao carregar Google API'));
             }
-        }, 15000);
+        }, 20000);
+        
+        window.__gapiLoadingPromise.then(resolve).catch(reject);
     });
 }
 
-/**
- * Inicializa o cliente do Google de forma simplificada
- */
 async function initGoogleClient() {
     try {
         console.log('🔧 Inicializando cliente Google...');
         
-        // AGUARDAR até que gapi.client esteja disponível
-        let attempts = 0;
-        while (!gapi.client && attempts < 10) {
-            console.log(`⏳ Aguardando gapi.client (tentativa ${attempts + 1}/10)...`);
-            await new Promise(resolve => setTimeout(resolve, 500));
-            attempts++;
+        if (!window.gapi) {
+            throw new Error('gapi não está disponível');
         }
         
-        if (!gapi.client) {
-            throw new Error('gapi.client não está disponível após várias tentativas');
-        }
-        
-        // AGUARDAR a função load
-        attempts = 0;
-        while (!gapi.client.load && attempts < 10) {
-            console.log(`⏳ Aguardando gapi.client.load (tentativa ${attempts + 1}/10)...`);
-            await new Promise(resolve => setTimeout(resolve, 500));
-            attempts++;
-        }
-        
-        // Abordagem 1: Inicialização padrão
         try {
+            await new Promise((resolve, reject) => {
+                gapi.load('client:auth2', {
+                    callback: resolve,
+                    onerror: reject,
+                    timeout: 15000
+                });
+            });
+            
+            console.log('✅ client:auth2 carregado');
+            
             await gapi.client.init({
                 apiKey: GOOGLE_DRIVE_CONFIG.apiKey || '',
                 clientId: GOOGLE_DRIVE_CONFIG.clientId,
@@ -213,97 +179,69 @@ async function initGoogleClient() {
                 scope: GOOGLE_DRIVE_CONFIG.scope
             });
             
-            console.log('✅ Cliente Google inicializado com sucesso (abordagem padrão)');
+            console.log('✅ Cliente Google inicializado');
             driveState.apiLoaded = true;
-            return;
             
-        } catch (initError) {
-            console.warn('⚠️ Erro na inicialização padrão, tentando abordagem alternativa...', initError);
+        } catch (error) {
+            console.warn('⚠️ Erro na inicialização combinada, tentando separadamente...', error);
             
-            // Abordagem 2: Inicialização manual
-            try {
-                // Carregar a API do Drive primeiro
-                await new Promise((resolve, reject) => {
-                    gapi.load('client:auth2', {
-                        callback: resolve,
-                        onerror: reject,
-                        timeout: 10000,
-                        ontimeout: () => reject(new Error('Timeout ao carregar cliente'))
-                    });
+            await new Promise((resolve, reject) => {
+                gapi.load('client', {
+                    callback: resolve,
+                    onerror: reject,
+                    timeout: 10000
                 });
-                
-                // Configurar após o load
-                if (GOOGLE_DRIVE_CONFIG.apiKey) {
-                    gapi.client.setApiKey(GOOGLE_DRIVE_CONFIG.apiKey);
-                }
-                
-                // Inicializar auth2
-                await gapi.auth2.init({
-                    client_id: GOOGLE_DRIVE_CONFIG.clientId,
-                    scope: GOOGLE_DRIVE_CONFIG.scope
-                });
-                
-                // Carregar API do Drive manualmente
-                await gapi.client.load('drive', 'v3');
-                
-                console.log('✅ Cliente Google inicializado (abordagem alternativa)');
-                driveState.apiLoaded = true;
-                
-            } catch (altError) {
-                console.error('❌ Erro na abordagem alternativa:', altError);
-                
-                // Abordagem 3: Tentativa mais básica
-                try {
-                    // Tentar carregar apenas o cliente básico
-                    await gapi.load('client');
-                    
-                    // Configurar chaves
-                    if (GOOGLE_DRIVE_CONFIG.apiKey) {
-                        gapi.client.setApiKey(GOOGLE_DRIVE_CONFIG.apiKey);
-                    }
-                    
-                    // Carregar Drive API
-                    await gapi.client.load('https://content.googleapis.com/discovery/v1/apis/drive/v3/rest');
-                    
-                    console.log('✅ Cliente Google inicializado (abordagem básica)');
-                    driveState.apiLoaded = true;
-                    
-                } catch (basicError) {
-                    console.error('❌ Erro na abordagem básica:', basicError);
-                    throw new Error(`Não foi possível inicializar a API do Google: ${basicError.message}`);
-                }
+            });
+            
+            console.log('✅ Cliente básico carregado');
+            
+            if (GOOGLE_DRIVE_CONFIG.apiKey) {
+                gapi.client.setApiKey(GOOGLE_DRIVE_CONFIG.apiKey);
             }
+            
+            await gapi.client.load('drive', 'v3');
+            
+            console.log('✅ Drive API carregada');
+            driveState.apiLoaded = true;
         }
+        
+        return true;
         
     } catch (error) {
         console.error('❌ Erro crítico ao inicializar cliente Google:', error);
-        throw error;
+        throw new Error(`Não foi possível inicializar a API do Google: ${error.message}`);
     }
 }
 
-/**
- * Verifica autenticação existente
- */
 async function checkExistingAuth() {
     try {
+        console.log('🔍 Verificando autenticação existente...');
+        
+        if (!gapi.auth2) {
+            console.warn('⚠️ gapi.auth2 não disponível, tentando inicializar...');
+            await initAuth2();
+        }
+        
         const authInstance = gapi.auth2.getAuthInstance();
         
-        if (authInstance) {
-            const user = authInstance.currentUser.get();
-            const isSignedIn = user.isSignedIn();
+        if (!authInstance) {
+            console.log('⚠️ Nenhuma instância de autenticação encontrada');
+            return false;
+        }
+        
+        const user = authInstance.currentUser.get();
+        const isSignedIn = user.isSignedIn();
+        
+        if (isSignedIn) {
+            console.log('✅ Usuário já autenticado no Google Drive');
+            const authResponse = user.getAuthResponse();
             
-            if (isSignedIn) {
-                console.log('✅ Usuário já autenticado no Google Drive');
-                const authResponse = user.getAuthResponse();
-                
-                driveState.isAuthenticated = true;
-                driveState.accessToken = authResponse.access_token;
-                
-                // Carregar lista de backups
-                await loadBackupList();
-                
-                return true;
-            }
+            driveState.isAuthenticated = true;
+            driveState.accessToken = authResponse.access_token;
+            
+            await loadBackupList();
+            
+            return true;
         }
         
         console.log('⚠️ Usuário não autenticado');
@@ -311,17 +249,58 @@ async function checkExistingAuth() {
         
     } catch (error) {
         console.warn('⚠️ Erro ao verificar autenticação:', error);
-        return false;
+        
+        try {
+            await initAuth2();
+            return false;
+        } catch (initError) {
+            console.error('❌ Falha ao inicializar auth2:', initError);
+            return false;
+        }
     }
 }
 
-// ============================================
-// 2. AUTENTICAÇÃO DO GOOGLE DRIVE (SIMPLIFICADA)
-// ============================================
+async function initAuth2() {
+    try {
+        console.log('🔄 Inicializando gapi.auth2...');
+        
+        if (gapi.auth2 && gapi.auth2.getAuthInstance()) {
+            console.log('✅ auth2 já inicializado');
+            return gapi.auth2.getAuthInstance();
+        }
+        
+        let attempts = 0;
+        while (!gapi.auth2 && attempts < 10) {
+            console.log(`⏳ Aguardando gapi.auth2 (tentativa ${attempts + 1}/10)...`);
+            await new Promise(resolve => setTimeout(resolve, 500));
+            attempts++;
+        }
+        
+        if (!gapi.auth2) {
+            await new Promise((resolve, reject) => {
+                gapi.load('auth2', {
+                    callback: resolve,
+                    onerror: reject,
+                    timeout: 10000
+                });
+            });
+        }
+        
+        const auth2 = await gapi.auth2.init({
+            client_id: GOOGLE_DRIVE_CONFIG.clientId,
+            scope: GOOGLE_DRIVE_CONFIG.scope,
+            fetch_basic_profile: false
+        });
+        
+        console.log('✅ gapi.auth2 inicializado com sucesso');
+        return auth2;
+        
+    } catch (error) {
+        console.error('❌ Erro ao inicializar auth2:', error);
+        throw error;
+    }
+}
 
-/**
- * Realiza login no Google Drive
- */
 async function loginToGoogleDrive() {
     try {
         console.log('🔄 Iniciando login no Google Drive...');
@@ -330,35 +309,49 @@ async function loginToGoogleDrive() {
         driveState.error = null;
         updateDriveStatusUI();
         
-        const authInstance = gapi.auth2.getAuthInstance();
+        const authInstance = await initAuth2();
         
         if (!authInstance) {
-            throw new Error('API de autenticação não disponível. Tente recarregar a página.');
+            throw new Error('Não foi possível inicializar a autenticação do Google.');
         }
         
-        // Solicitar login
+        console.log('🔑 Solicitando login...');
         const user = await authInstance.signIn();
+        
         const authResponse = user.getAuthResponse();
         
-        // Atualizar estado
+        if (!authResponse || !authResponse.access_token) {
+            throw new Error('Token de acesso não recebido');
+        }
+        
         driveState.isAuthenticated = true;
         driveState.accessToken = authResponse.access_token;
         driveState.error = null;
         
         console.log('✅ Login realizado com sucesso! Token:', authResponse.access_token.substring(0, 20) + '...');
         
-        // Carregar lista de backups
         await loadBackupList();
         
-        // Mostrar alerta de sucesso
         showAlert('Conectado ao Google Drive com sucesso!', 'success');
         
         return true;
         
     } catch (error) {
         console.error('❌ Erro ao fazer login:', error);
-        driveState.error = error.message || 'Erro desconhecido no login';
-        showAlert(`Erro ao conectar ao Google Drive: ${driveState.error}`, 'error');
+        
+        let errorMessage = error.message || 'Erro desconhecido no login';
+        
+        if (error.error === 'popup_closed_by_user') {
+            errorMessage = 'Login cancelado pelo usuário';
+        } else if (error.error === 'access_denied') {
+            errorMessage = 'Acesso negado pelo usuário';
+        } else if (error.message && error.message.includes('The popup was closed')) {
+            errorMessage = 'A janela de login foi fechada';
+        }
+        
+        driveState.error = errorMessage;
+        showAlert(`Erro ao conectar ao Google Drive: ${errorMessage}`, 'error');
+        
         return false;
     } finally {
         driveState.isLoading = false;
@@ -366,26 +359,27 @@ async function loginToGoogleDrive() {
     }
 }
 
-/**
- * Realiza logout do Google Drive
- */
 async function logoutFromGoogleDrive() {
     try {
         console.log('🔄 Realizando logout do Google Drive...');
         
-        const authInstance = gapi.auth2.getAuthInstance();
-        if (authInstance) {
-            await authInstance.signOut();
+        try {
+            const authInstance = gapi.auth2 && gapi.auth2.getAuthInstance();
+            if (authInstance) {
+                await authInstance.signOut();
+                console.log('✅ Logout realizado com sucesso via auth2');
+            }
+        } catch (authError) {
+            console.warn('⚠️ Não foi possível fazer logout via auth2:', authError);
         }
         
-        // Limpar estado
         driveState.isAuthenticated = false;
         driveState.accessToken = null;
         driveState.backupFiles = [];
         driveState.folderId = null;
         driveState.error = null;
         
-        console.log('✅ Logout realizado com sucesso!');
+        console.log('✅ Estado limpo com sucesso');
         showAlert('Desconectado do Google Drive', 'info');
         
     } catch (error) {
@@ -397,17 +391,13 @@ async function logoutFromGoogleDrive() {
 }
 
 // ============================================
-// 3. GERENCIAMENTO DA PASTA DE BACKUP
+// GERENCIAMENTO DA PASTA DE BACKUP
 // ============================================
 
-/**
- * Cria ou obtém a pasta de backups no Google Drive
- */
 async function getOrCreateBackupFolder() {
     try {
         console.log('🔍 Procurando pasta de backups...');
         
-        // Procurar pasta existente
         const response = await gapi.client.drive.files.list({
             q: "mimeType='application/vnd.google-apps.folder' and name='"+ GOOGLE_DRIVE_CONFIG.folderName +"' and trashed=false",
             fields: 'files(id, name, createdTime)',
@@ -415,12 +405,10 @@ async function getOrCreateBackupFolder() {
         });
         
         if (response.result.files && response.result.files.length > 0) {
-            // Pasta já existe
             driveState.folderId = response.result.files[0].id;
             console.log(`✅ Pasta encontrada: ${driveState.folderId}`);
             return driveState.folderId;
         } else {
-            // Criar nova pasta
             console.log('📁 Criando nova pasta de backups...');
             
             const createResponse = await gapi.client.drive.files.create({
@@ -444,12 +432,9 @@ async function getOrCreateBackupFolder() {
 }
 
 // ============================================
-// 4. GERENCIAMENTO DE ARQUIVOS DE BACKUP
+// GERENCIAMENTO DE ARQUIVOS DE BACKUP
 // ============================================
 
-/**
- * Carrega lista de backups do Google Drive
- */
 async function loadBackupList() {
     if (!driveState.isAuthenticated) {
         console.log('⚠️ Usuário não autenticado, ignorando carregamento de backups');
@@ -460,12 +445,10 @@ async function loadBackupList() {
         driveState.isLoading = true;
         updateDriveStatusUI();
         
-        // Garantir que temos a pasta
         const folderId = await getOrCreateBackupFolder();
         
         console.log('📂 Carregando lista de backups...');
         
-        // Buscar arquivos JSON na pasta
         const response = await gapi.client.drive.files.list({
             q: `'${folderId}' in parents and name contains '${GOOGLE_DRIVE_CONFIG.filePrefix}' and trashed=false`,
             fields: 'files(id, name, createdTime, modifiedTime, size, description)',
@@ -474,7 +457,6 @@ async function loadBackupList() {
         });
         
         if (response.result.files && response.result.files.length > 0) {
-            // Processar arquivos
             driveState.backupFiles = response.result.files.map(file => ({
                 id: file.id,
                 name: file.name,
@@ -485,10 +467,8 @@ async function loadBackupList() {
                 isLatest: false
             }));
             
-            // Ordenar por data (mais recente primeiro)
             driveState.backupFiles.sort((a, b) => b.modifiedTime - a.modifiedTime);
             
-            // Marcar o mais recente
             if (driveState.backupFiles.length > 0) {
                 driveState.backupFiles[0].isLatest = true;
             }
@@ -500,7 +480,6 @@ async function loadBackupList() {
             console.log('📭 Nenhum backup encontrado');
         }
         
-        // Atualizar UI
         updateBackupListUI();
         
     } catch (error) {
@@ -513,9 +492,6 @@ async function loadBackupList() {
     }
 }
 
-/**
- * Cria um novo backup no Google Drive
- */
 async function createBackupToDrive(data, description = 'Backup automático') {
     if (!driveState.isAuthenticated) {
         console.log('⚠️ Usuário não autenticado, ignorando backup');
@@ -528,19 +504,15 @@ async function createBackupToDrive(data, description = 'Backup automático') {
         updateDriveStatusUI();
         showAlert('Criando backup no Google Drive...', 'info');
         
-        // Garantir que temos a pasta
         const folderId = await getOrCreateBackupFolder();
         
-        // Nome do arquivo com timestamp
         const timestamp = new Date().toISOString().slice(0, 19).replace(/[:.]/g, '-');
         const fileName = `${GOOGLE_DRIVE_CONFIG.filePrefix}${timestamp}${GOOGLE_DRIVE_CONFIG.fileExtension}`;
         
         console.log(`💾 Criando backup: ${fileName}`);
         
-        // Converter dados para JSON
         const jsonData = JSON.stringify(data, null, 2);
         
-        // Criar metadados do arquivo
         const metadata = {
             name: fileName,
             mimeType: 'application/json',
@@ -548,7 +520,6 @@ async function createBackupToDrive(data, description = 'Backup automático') {
             description: description
         };
         
-        // Preparar conteúdo do arquivo
         const boundary = '-------' + Date.now().toString(16);
         const delimiter = "\r\n--" + boundary + "\r\n";
         const closeDelimiter = "\r\n--" + boundary + "--";
@@ -565,7 +536,6 @@ async function createBackupToDrive(data, description = 'Backup automático') {
             jsonData +
             closeDelimiter;
         
-        // Fazer upload
         const request = gapi.client.request({
             path: '/upload/drive/v3/files',
             method: 'POST',
@@ -584,7 +554,6 @@ async function createBackupToDrive(data, description = 'Backup automático') {
         
         console.log(`✅ Backup criado com sucesso: ${file.id}`);
         
-        // Adicionar à lista local
         const backupFile = {
             id: file.id,
             name: file.name,
@@ -595,19 +564,15 @@ async function createBackupToDrive(data, description = 'Backup automático') {
             isLatest: true
         };
         
-        // Adicionar no início da lista
         driveState.backupFiles.forEach(f => f.isLatest = false);
         driveState.backupFiles.unshift(backupFile);
         
-        // Limitar número de backups
         if (driveState.backupFiles.length > GOOGLE_DRIVE_CONFIG.maxBackupFiles) {
             await cleanupOldBackups();
         }
         
-        // Atualizar UI
         updateBackupListUI();
         
-        // Mostrar sucesso
         const readableDate = backupFile.createdTime.toLocaleString('pt-BR');
         showAlert(`Backup criado com sucesso em ${readableDate}!`, 'success');
         
@@ -624,9 +589,6 @@ async function createBackupToDrive(data, description = 'Backup automático') {
     }
 }
 
-/**
- * Restaura um backup do Google Drive
- */
 async function restoreBackupFromDrive(fileId) {
     if (!driveState.isAuthenticated) {
         showAlert('Faça login no Google Drive para restaurar backups', 'warning');
@@ -637,7 +599,6 @@ async function restoreBackupFromDrive(fileId) {
         driveState.isLoading = true;
         updateDriveStatusUI();
         
-        // Encontrar o arquivo na lista
         const backupFile = driveState.backupFiles.find(f => f.id === fileId);
         if (!backupFile) {
             throw new Error('Arquivo de backup não encontrado');
@@ -646,13 +607,11 @@ async function restoreBackupFromDrive(fileId) {
         console.log(`🔄 Restaurando backup: ${backupFile.name}`);
         showAlert(`Restaurando backup de ${backupFile.createdTime.toLocaleDateString('pt-BR')}...`, 'info');
         
-        // Baixar o arquivo
         const response = await gapi.client.drive.files.get({
             fileId: fileId,
             alt: 'media'
         });
         
-        // Verificar e parsear dados
         if (!response.body) {
             throw new Error('Arquivo de backup vazio');
         }
@@ -664,14 +623,12 @@ async function restoreBackupFromDrive(fileId) {
             throw new Error('Arquivo de backup corrompido');
         }
         
-        // Validar estrutura
         if (!backupData || typeof backupData !== 'object') {
             throw new Error('Estrutura de backup inválida');
         }
         
         console.log(`✅ Backup carregado: ${backupData.products?.length || 0} produtos`);
         
-        // Mostrar confirmação
         showRestoreConfirmationModal(backupFile, backupData);
         
         return backupData;
@@ -686,9 +643,6 @@ async function restoreBackupFromDrive(fileId) {
     }
 }
 
-/**
- * Deleta um backup do Google Drive
- */
 async function deleteBackupFromDrive(fileId) {
     if (!driveState.isAuthenticated) {
         return false;
@@ -703,12 +657,10 @@ async function deleteBackupFromDrive(fileId) {
         
         console.log('✅ Backup excluído com sucesso');
         
-        // Remover da lista local
         const index = driveState.backupFiles.findIndex(f => f.id === fileId);
         if (index !== -1) {
             driveState.backupFiles.splice(index, 1);
             
-            // Atualizar status "isLatest"
             if (driveState.backupFiles.length > 0) {
                 driveState.backupFiles[0].isLatest = true;
             }
@@ -726,9 +678,6 @@ async function deleteBackupFromDrive(fileId) {
     }
 }
 
-/**
- * Limpa backups antigos
- */
 async function cleanupOldBackups() {
     if (driveState.backupFiles.length <= GOOGLE_DRIVE_CONFIG.maxBackupFiles) {
         return;
@@ -748,7 +697,6 @@ async function cleanupOldBackups() {
         }
     }
     
-    // Atualizar lista local
     driveState.backupFiles = driveState.backupFiles.slice(0, GOOGLE_DRIVE_CONFIG.maxBackupFiles);
     
     if (deletedCount > 0) {
@@ -757,14 +705,10 @@ async function cleanupOldBackups() {
 }
 
 // ============================================
-// 5. INTERFACE DO USUÁRIO (UI)
+// INTERFACE DO USUÁRIO (UI)
 // ============================================
 
-/**
- * Atualiza o status do Google Drive na UI
- */
 function updateDriveStatusUI() {
-    // Atualizar ou criar card no dashboard
     let driveCard = document.getElementById('drive-status-card');
     
     if (!driveCard) {
@@ -780,7 +724,6 @@ function updateDriveStatusUI() {
         dashboardCards.appendChild(driveCard);
     }
     
-    // Atualizar conteúdo do card
     let statusText = 'Desconectado';
     let statusClass = 'secondary';
     let backupCount = 'Faça login';
@@ -808,13 +751,9 @@ function updateDriveStatusUI() {
              id="drive-backup-count">${backupCount}</div>
     `);
     
-    // Atualizar view de banco de dados
     updateDatabaseViewWithDrive();
 }
 
-/**
- * Atualiza a view de banco de dados
- */
 function updateDatabaseViewWithDrive() {
     const databaseView = document.getElementById('database-view');
     if (!databaseView) return;
@@ -912,7 +851,6 @@ function updateDatabaseViewWithDrive() {
         ` : ''}
     `);
     
-    // Adicionar event listeners
     setTimeout(() => {
         const loginBtn = document.getElementById('drive-login-btn');
         const logoutBtn = document.getElementById('drive-logout-btn');
@@ -924,7 +862,6 @@ function updateDatabaseViewWithDrive() {
         if (refreshBtn) refreshBtn.onclick = loadBackupList;
         if (createBackupBtn) createBackupBtn.onclick = () => createBackupToDrive(systemData, 'Backup manual');
         
-        // Event listeners para botões de backup
         document.querySelectorAll('.restore-backup-btn').forEach(btn => {
             btn.onclick = () => restoreBackupFromDrive(btn.getAttribute('data-id'));
         });
@@ -943,19 +880,11 @@ function updateDatabaseViewWithDrive() {
     }, 100);
 }
 
-/**
- * Atualiza a lista de backups na UI
- */
 function updateBackupListUI() {
-    // Esta função é chamada por updateDatabaseViewWithDrive()
     updateDatabaseViewWithDrive();
 }
 
-/**
- * Mostra modal de gerenciamento do Google Drive
- */
 function showDriveManagerModal() {
-    // Criar modal
     let modal = document.getElementById('drive-manager-modal');
     
     if (!modal) {
@@ -983,22 +912,16 @@ function showDriveManagerModal() {
         `);
         document.body.appendChild(modal);
         
-        // Event listeners para fechar
         modal.querySelector('.modal-close').onclick = () => modal.classList.remove('active');
         modal.querySelector('#close-drive-modal').onclick = () => modal.classList.remove('active');
         modal.onclick = (e) => { if (e.target === modal) modal.classList.remove('active'); };
     }
     
-    // Atualizar conteúdo
     updateDriveManagerContent();
     
-    // Mostrar modal
     modal.classList.add('active');
 }
 
-/**
- * Atualiza conteúdo do modal de gerenciamento
- */
 function updateDriveManagerContent() {
     const content = document.getElementById('drive-manager-content');
     if (!content) return;
@@ -1130,7 +1053,6 @@ function updateDriveManagerContent() {
         `}
     `);
     
-    // Adicionar event listeners
     setTimeout(() => {
         const connectBtn = document.getElementById('modal-connect-drive');
         const disconnectBtn = document.getElementById('modal-disconnect-drive');
@@ -1159,7 +1081,6 @@ function updateDriveManagerContent() {
             updateDriveManagerContent();
         };
         
-        // Botões de backup no modal
         document.querySelectorAll('.modal-restore-backup').forEach(btn => {
             btn.onclick = () => {
                 const modal = document.getElementById('drive-manager-modal');
@@ -1183,11 +1104,7 @@ function updateDriveManagerContent() {
     }, 100);
 }
 
-/**
- * Mostra modal de confirmação para restaurar backup
- */
 function showRestoreConfirmationModal(backupFile, backupData) {
-    // Criar modal simples
     const modal = document.createElement('div');
     modal.className = 'modal';
     modal.id = 'restore-confirmation-modal';
@@ -1224,7 +1141,6 @@ function showRestoreConfirmationModal(backupFile, backupData) {
     
     document.body.appendChild(modal);
     
-    // Event listeners
     modal.querySelector('.modal-close').onclick = 
     modal.querySelector('#cancel-restore').onclick = () => {
         modal.remove();
@@ -1235,18 +1151,14 @@ function showRestoreConfirmationModal(backupFile, backupData) {
             modal.remove();
             showAlert('Restaurando backup...', 'info');
             
-            // Atualizar systemData
             window.systemData = backupData;
             
-            // Salvar localmente
             if (typeof databaseManager !== 'undefined' && databaseManager.saveSystemData) {
                 await databaseManager.saveSystemData(backupData);
             } else {
-                // Fallback para localStorage
                 localStorage.setItem('camarim-system-data', JSON.stringify(backupData));
             }
             
-            // Recarregar sistema
             if (typeof loadData === 'function') loadData();
             if (typeof updateDashboard === 'function') updateDashboard();
             if (typeof updateProductsList === 'function') updateProductsList();
@@ -1263,13 +1175,9 @@ function showRestoreConfirmationModal(backupFile, backupData) {
         if (e.target === modal) modal.remove();
     };
     
-    // Mostrar modal
     setTimeout(() => modal.classList.add('active'), 10);
 }
 
-/**
- * Baixa um arquivo de backup localmente
- */
 async function downloadBackupFile(fileId) {
     try {
         const backupFile = driveState.backupFiles.find(f => f.id === fileId);
@@ -1277,13 +1185,11 @@ async function downloadBackupFile(fileId) {
         
         showAlert('Baixando backup...', 'info');
         
-        // Obter conteúdo
         const response = await gapi.client.drive.files.get({
             fileId: fileId,
             alt: 'media'
         });
         
-        // Criar download
         const jsonData = JSON.stringify(response.body, null, 2);
         const blob = new Blob([jsonData], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
@@ -1306,12 +1212,9 @@ async function downloadBackupFile(fileId) {
 }
 
 // ============================================
-// 6. FUNÇÕES UTILITÁRIAS
+// FUNÇÕES UTILITÁRIAS
 // ============================================
 
-/**
- * Formata tamanho de arquivo
- */
 function formatFileSize(bytes) {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
@@ -1320,11 +1223,7 @@ function formatFileSize(bytes) {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
-/**
- * Mostra alerta
- */
 function showAlert(message, type = 'info') {
-    // Usar função existente ou criar uma básica
     if (typeof window.showAlert === 'function') {
         window.showAlert(message, type);
     } else {
@@ -1334,23 +1233,18 @@ function showAlert(message, type = 'info') {
 }
 
 // ============================================
-// 7. INTEGRAÇÃO COM SISTEMA PRINCIPAL
+// INTEGRAÇÃO COM SISTEMA PRINCIPAL
 // ============================================
 
-/**
- * Integra com sistema principal
- */
 function integrateWithMainSystem() {
     console.log('🔗 Integrando Google Drive com sistema principal...');
     
-    // Sobrescrever saveData para backup automático
     const originalSave = databaseManager ? databaseManager.saveSystemData : null;
     
     if (originalSave) {
         databaseManager.saveSystemData = async function(data) {
             const result = await originalSave.call(this, data);
             
-            // Backup automático no Google Drive
             if (driveState.isAuthenticated && !driveState.isLoading) {
                 setTimeout(async () => {
                     try {
@@ -1369,35 +1263,28 @@ function integrateWithMainSystem() {
 }
 
 // ============================================
-// 8. INICIALIZAÇÃO DO SISTEMA
+// INICIALIZAÇÃO DO SISTEMA
 // ============================================
 
-/**
- * Inicializa o sistema de backup
- */
 async function initDriveBackupSystem() {
     console.log('🚀 Iniciando sistema de backup do Google Drive...');
     
     try {
-        // Aguardar sistema principal
         if (typeof systemData === 'undefined') {
             console.log('⏳ Aguardando sistema principal...');
             await new Promise(resolve => setTimeout(resolve, 1000));
         }
         
-        // Inicializar Google Drive
         const success = await initGoogleDrive();
         
         if (success) {
-            // Integrar com sistema principal
             integrateWithMainSystem();
             
-            // Configurar atualizações periódicas
             setInterval(() => {
                 if (driveState.isAuthenticated) {
                     loadBackupList().catch(console.warn);
                 }
-            }, 5 * 60 * 1000); // A cada 5 minutos
+            }, 5 * 60 * 1000);
             
             console.log('✅ Sistema de backup inicializado com sucesso!');
         }
@@ -1408,10 +1295,9 @@ async function initDriveBackupSystem() {
 }
 
 // ============================================
-// 9. EXPORTAÇÃO PARA ESCOPO GLOBAL
+// EXPORTAÇÃO PARA ESCOPO GLOBAL
 // ============================================
 
-// Exportar funções para uso global
 window.DriveBackup = {
     state: driveState,
     config: GOOGLE_DRIVE_CONFIG,
@@ -1425,12 +1311,9 @@ window.DriveBackup = {
 };
 
 // ============================================
-// 10. INSTRUÇÕES DE CONFIGURAÇÃO EM TEMPO REAL
+// INSTRUÇÕES DE CONFIGURAÇÃO EM TEMPO REAL
 // ============================================
 
-/**
- * Mostra instruções de configuração
- */
 function showConfigurationInstructions() {
     const modal = document.createElement('div');
     modal.className = 'modal';
@@ -1484,7 +1367,6 @@ function showConfigurationInstructions() {
     
     document.body.appendChild(modal);
     
-    // Event listeners
     modal.querySelector('.modal-close').onclick = 
     modal.querySelector('#close-instructions').onclick = () => modal.remove();
     
@@ -1500,16 +1382,14 @@ function showConfigurationInstructions() {
 }
 
 // ============================================
-// 11. INICIALIZAÇÃO AUTOMÁTICA
+// INICIALIZAÇÃO AUTOMÁTICA
 // ============================================
 
-// Inicializar quando o DOM estiver pronto
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
         setTimeout(() => {
             initDriveBackupSystem().catch(console.error);
             
-            // Mostrar instruções se não configurado
             if (!GOOGLE_DRIVE_CONFIG.clientId) {
                 setTimeout(showConfigurationInstructions, 3000);
             }
