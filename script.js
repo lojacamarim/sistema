@@ -5531,13 +5531,9 @@ function updateCategoryChart() {
     
     // Mapear categorias para nomes em português
     const categoryNames = {
-        'Shoes': 'Sapatos',
-        'Belts': 'Cintos',
-        'Bags': 'Bolsas',
-        'Activewear': 'Roupas Esportivas',
-        'Clothing': 'Roupas Casuais',
+        'Skincare': 'Skincare',
         'Makeup': 'Maquiagem',
-        'Skincare': 'Skincare'
+        'Acessories': 'Acessórios'
     };
     
     const labels = categories.map(cat => categoryNames[cat] || cat);
@@ -6083,13 +6079,9 @@ function formatCurrency(value) {
 
 function getCategoryName(categoryCode) {
     const categories = {
-        'Shoes': 'Sapatos',
-        'Belts': 'Cintos',
-        'Bags': 'Bolsas',
-        'Activewear': 'Roupas Esportivas',
-        'Clothing': 'Roupas Casuais',
+        'Skincare': 'Skincare',
         'Makeup': 'Maquiagem',
-        'Skincare': 'Skincare'
+        'Acessories': 'Acessórios'
     };
     
     const sanitizedCode = DOMPurify.sanitize(categoryCode);
