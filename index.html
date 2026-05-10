@@ -54,9 +54,6 @@
                 <a href="#reports" class="nav-item" data-view="reports">
                     <i class="fas fa-chart-bar"></i> Relatórios
                 </a>
-                <a href="#settings" class="nav-item" data-view="settings">
-                    <i class="fas fa-cog"></i> Configurações
-                </a>
                 <a href="#database" class="nav-item" data-view="database">
                     <i class="fas fa-database"></i> Banco de Dados
                 </a>
@@ -202,8 +199,6 @@
                                     <th>Categoria</th>
                                     <th>Custo</th>
                                     <th>CMV</th>
-                                    <th>Markup</th>
-                                    <th>Sugerido</th>
                                     <th>Preço</th>
                                     <th>Estoque</th>
                                     <th>Total</th>
@@ -215,163 +210,117 @@
                     </div>
                 </div>
                 
-                <!-- New Product View -->
-                <div id="new-product-view" class="view d-none">
-                    <div class="mb-20">
-                        <div class="alert alert-success d-none" id="new-product-alert">
-                            <i class="fas fa-check-circle"></i>
-                            <span id="new-alert-message"></span>
-                        </div>
-                    </div>
-                    
-                    <div class="header">
-                        <div class="header-actions">
-                            <button class="btn btn-light" data-view="products">
-                                <i class="fas fa-arrow-left"></i> Voltar
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <div class="form-container">
-                        <form id="product-form">
-                            <input type="hidden" id="product-id">
-                            <input type="hidden" id="is-edit" value="false">
-                            
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="product-name">Nome do Produto *</label>
-                                    <input type="text" id="product-name" class="form-control" required>
-                                </div>
-                                
-                                <div class="form-group">
-                                    <label for="product-category">Categoria *</label>
-                                    <select id="product-category" class="form-control" required>
-                                        <option value="">Selecione uma categoria</option>
-                                        <option value="Skincare">Skincare</option>
-                                        <option value="Makeup">Maquiagem</option>
-                                        <option value="Acessories">Acessórios</option>
-                                    </select>
-                                </div>
-                            </div>
-                            
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="purchase-cost">Custo de Compra (R$) *</label>
-                                    <input type="number" id="purchase-cost" class="form-control" step="0.01" min="0" required>
-                                    <div class="form-text">Valor pago pelo produto</div>
-                                </div>
-                                
-                                <div class="form-group">
-                                    <label for="shipping-cost">Custo de Frete (R$) *</label>
-                                    <input type="number" id="shipping-cost" class="form-control" step="0.01" min="0" required>
-                                    <div class="form-text">Custo do frete para receber o produto</div>
-                                </div>
-                            </div>
-                            
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="operational-expenses">Despesas Operacionais Mensais (R$)</label>
-                                    <input type="number" id="operational-expenses" class="form-control" step="0.01" min="0" value="0">
-                                    <div class="form-text">Despesas fixas mensais da loja</div>
-                                </div>
-                                
-                                <div class="form-group">
-                                    <label for="expected-sales">Volume de Vendas Mensal Esperado *</label>
-                                    <input type="number" id="expected-sales" class="form-control" min="1" required value="0">
-                                    <div class="form-text">Quantidade esperada de vendas por mês</div>
-                                </div>
-                            </div>
-                            
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="variable-fees">Taxas Variáveis (%)</label>
-                                    <input type="number" id="variable-fees" class="form-control" step="0.1" min="0" value="1.0">
-                                    <div class="form-text">Taxas de cartão + comissões</div>
-                                </div>
-                                
-                                <div class="form-group">
-                                    <label for="taxes">Impostos (%)</label>
-                                    <input type="number" id="taxes" class="form-control" step="0.1" min="0" value="6">
-                                    <div class="form-text">Impostos sobre a venda (padrão: 6%)</div>
-                                </div>
-                                
-                                <div class="form-group">
-                                    <label for="profit-margin">Margem de Lucro Desejada (%)</label>
-                                    <input type="number" id="profit-margin" class="form-control" step="0.1" min="0" value="40">
-                                    <div class="form-text">Margem de lucro desejada (padrão: 40%)</div>
-                                </div>
-                            </div>
-                            
-                            <div class="calculation-box">
-                                <h4>Cálculo do Preço Sugerido</h4>
-                                
-                                <div class="calculation-row">
-                                    <span>Custo de Compra:</span>
-                                    <span id="calc-purchase-cost" class="currency">0,00</span>
-                                </div>
-                                
-                                <div class="calculation-row">
-                                    <span>+ Custo de Frete:</span>
-                                    <span id="calc-shipping-cost" class="currency">0,00</span>
-                                </div>
-                                
-                                <div class="calculation-row">
-                                    <span>+ Custo Operacional Proporcional:</span>
-                                    <span id="calc-operational-cost" class="currency">0,00</span>
-                                </div>
-                                
-                                <div class="calculation-row">
-                                    <span><strong>CMV (Custo Mercadoria Vendida):</strong></span>
-                                    <span id="calc-cmv" class="currency"><strong>0,00</strong></span>
-                                </div>
-                                
-                                <div class="calculation-row">
-                                    <span>Taxas Variáveis:</span>
-                                    <span id="calc-variable-fees" class="percentage">0,00</span>
-                                </div>
-                                
-                                <div class="calculation-row">
-                                    <span>+ Impostos:</span>
-                                    <span id="calc-taxes" class="percentage">0,00</span>
-                                </div>
-                                
-                                <div class="calculation-row">
-                                    <span>+ Margem de Lucro:</span>
-                                    <span id="calc-profit-margin" class="percentage">0,00</span>
-                                </div>
-                                
-                                <div class="calculation-row">
-                                    <span><strong>Markup:</strong></span>
-                                    <span id="calc-markup"><strong>0,00</strong></span>
-                                </div>
-                                
-                                <div class="calculation-row total">
-                                    <span>PREÇO SUGERIDO:</span>
-                                    <span id="calc-suggested-price" class="currency"><strong>0,00</strong></span>
-                                </div>
-                            </div>
-                            
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="selling-price">Preço de Venda (R$) *</label>
-                                    <input type="number" id="selling-price" class="form-control" step="0.01" min="0" required>
-                                    <div class="form-text">Preço real de venda (pode ser ajustado)</div>
-                                </div>
-                                
-                                <div class="form-group">
-                                    <label for="initial-stock">Estoque *</label>
-                                    <input type="number" id="initial-stock" class="form-control" min="0" required value="10">
-                                    <div class="form-text">Quantidade em estoque</div>
-                                </div>
-                            </div>
-                            
-                            <div class="text-right mt-20">
-                                <button type="button" class="btn btn-light" data-view="products">Cancelar</button>
-                                <button type="submit" class="btn btn-success" id="product-form-submit">Salvar Produto</button>
-                            </div>
-                        </form>
-                    </div>
+<!-- New Product View -->
+<div id="new-product-view" class="view d-none">
+    <div class="mb-20">
+        <div class="alert alert-success d-none" id="new-product-alert">
+            <i class="fas fa-check-circle"></i>
+            <span id="new-alert-message"></span>
+        </div>
+    </div>
+    
+    <div class="header">
+        <div class="header-actions">
+            <button class="btn btn-light" data-view="products">
+                <i class="fas fa-arrow-left"></i> Voltar
+            </button>
+        </div>
+    </div>
+    
+    <div class="form-container">
+        <form id="product-form">
+            <input type="hidden" id="product-id">
+            <input type="hidden" id="is-edit" value="false">
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="product-name">Nome do Produto *</label>
+                    <input type="text" id="product-name" class="form-control" required>
                 </div>
+                
+                <div class="form-group">
+                    <label for="product-category">Categoria *</label>
+                    <select id="product-category" class="form-control" required>
+                        <option value="">Selecione uma categoria</option>
+                        <option value="Skincare">Skincare</option>
+                        <option value="Makeup">Maquiagem</option>
+                        <option value="Acessories">Acessórios</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="purchase-cost">Custo de Compra (R$) *</label>
+                    <input type="number" id="purchase-cost" class="form-control" step="0.01" min="0" required>
+                    <div class="form-text">Valor pago pelo produto</div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="cmv-cost">CMV - Custo da Mercadoria Vendida (R$) *</label>
+                    <input type="number" id="cmv-cost" class="form-control" step="0.01" min="0" required value="0">
+                    <div class="form-text">Gastos adicionais: frete, taxas, embalagem, etc.</div>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="profit-margin">Margem de Lucro Desejada (%)</label>
+                    <input type="number" id="profit-margin" class="form-control" step="0.1" min="0" value="50">
+                    <div class="form-text">Percentual de lucro sobre o custo total</div>
+                </div>
+            </div>
+            
+            <div class="calculation-box">
+                <h4>Cálculo do Preço de Venda</h4>
+                
+                <div class="calculation-row">
+                    <span>Custo de Compra:</span>
+                    <span id="calc-purchase-cost" class="currency">0,00</span>
+                </div>
+                
+                <div class="calculation-row">
+                    <span>+ CMV (Custo da Mercadoria Vendida):</span>
+                    <span id="calc-cmv" class="currency">0,00</span>
+                </div>
+                
+                <div class="calculation-row">
+                    <span>= Custo Total:</span>
+                    <span id="calc-total-cost" class="currency">0,00</span>
+                </div>
+                
+                <div class="calculation-row">
+                    <span>+ Margem de Lucro (<span id="calc-profit-percent">0</span>%):</span>
+                    <span id="calc-profit-value" class="currency">0,00</span>
+                </div>
+                
+                <div class="calculation-row total">
+                    <span>PREÇO DE VENDA SUGERIDO:</span>
+                    <span id="calc-suggested-price" class="currency"><strong>0,00</strong></span>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="selling-price">Preço de Venda (R$) *</label>
+                    <input type="number" id="selling-price" class="form-control" step="0.01" min="0" required>
+                    <div class="form-text">Preço real de venda (pode ser ajustado)</div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="initial-stock">Estoque *</label>
+                    <input type="number" id="initial-stock" class="form-control" min="0" required value="10">
+                    <div class="form-text">Quantidade em estoque</div>
+                </div>
+            </div>
+            
+            <div class="text-right mt-20">
+                <button type="button" class="btn btn-light" data-view="products">Cancelar</button>
+                <button type="submit" class="btn btn-success" id="product-form-submit">Salvar Produto</button>
+            </div>
+        </form>
+    </div>
+</div>
                 
                 <!-- Sales View -->
                 <div id="sales-view" class="view d-none">
@@ -581,68 +530,11 @@
                     </div>
                 </div>
                 
-                <!-- Settings View -->
-                <div id="settings-view" class="view d-none">
-                    <div class="header">
-                        <button class="btn btn-light" data-view="dashboard">
-                            <i class="fas fa-arrow-left"></i> Voltar
-                        </button>
-                    </div>
-                    
-                    <div class="form-container">
-                        <h3 style="margin-bottom: 20px;">Configurações Padrão</h3>
-                        
-                        <form id="settings-form">
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="default-debit-fee">Taxa Cartão Débito (%)</label>
-                                    <input type="number" id="default-debit-fee" class="form-control" step="0.1" min="0" value="2.0">
-                                </div>
-                                
-                                <div class="form-group">
-                                    <label for="default-credit-fee">Taxa Cartão Crédito (%)</label>
-                                    <input type="number" id="default-credit-fee" class="form-control" step="0.1" min="0" value="4.5">
-                                </div>
-                                
-                                <div class="form-group">
-                                    <label for="default-tax">Imposto Padrão (%)</label>
-                                    <input type="number" id="default-tax" class="form-control" step="0.1" min="0" value="6">
-                                </div>
-                            </div>
-                            
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="default-margin">Margem de Lucro Padrão (%)</label>
-                                    <input type="number" id="default-margin" class="form-control" step="0.1" min="0" value="40">
-                                </div>
-                                
-                                <div class="form-group">
-                                    <label for="monthly-expenses">Despesas Operacionais Mensais (R$)</label>
-                                    <input type="number" id="monthly-expenses" class="form-control" step="0.01" min="0" value="4000">
-                                </div>
-                            </div>
-                            <div class="text-right mt-20">
-                                <button type="submit" class="btn btn-success">Salvar Configurações</button>
-                            </div>
-
-                            <footer style="background-color: #fff; padding: 15px; margin-top: 30px; border-top: 1px solid #dee2e6;">
-                                <div style="max-width: 1200px; margin: 0 auto; text-align: center;">
-                                    <p style="margin: 0; color: #6c757d; font-size: 0.9rem;">
-                                        <strong style="color: #FF6B8B;">Camarim</strong>
-                                        <span style="font-size: 1.1rem;">&copy;</span> 2025 - Sistema de Gestão desenvolvido por 
-                                        <span style="color: #FF6B8B; font-weight: 500;">Guilherme Silva Vanderley</span> - Atualização: 26/12/25 - às 21h40
-                                    </p>
-                                </div>
-                            </footer>
-                        </form>
-                    </div>
-                </div>
-                
                 <!-- Database View -->
                 <div id="database-view" class="view d-none">
                     <div class="header">
                         <div class="header-actions">
-                            <button class="btn btn-light" data-view="settings">
+                            <button class="btn btn-light" data-view="dashboard">
                                 <i class="fas fa-arrow-left"></i> Voltar
                             </button>
                         </div>
@@ -1027,5 +919,14 @@
     
     <input type="file" id="file-input" style="display: none;" accept=".json">
 
+    <footer style="background-color: #fff; padding: 15px; margin-top: 30px; border-top: 1px solid #dee2e6;">
+        <div style="max-width: 1200px; margin: 0 auto; text-align: center;">
+            <p style="margin: 0; color: #6c757d; font-size: 0.9rem;">
+                <strong style="color: #FF6B8B;">Camarim</strong>
+                <span style="font-size: 1.1rem;">&copy;</span> 2025 - Sistema de Gestão desenvolvido por 
+                <span style="color: #FF6B8B; font-weight: 500;">Guilherme Silva Vanderley</span> - Atualização: 26/12/25 - às 21h40
+            </p>
+        </div>
+    </footer>
 </body>
 </html>
