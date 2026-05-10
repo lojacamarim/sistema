@@ -91,9 +91,6 @@ let systemData = {
     settings: {
         defaultDebitFee: 2.0,
         defaultCreditFee: 4.5,
-        defaultTax: 6,
-        defaultMargin: 40,
-        monthlyOperationalExpenses: 4000,
         lastProductId: 0,
         lastSaleId: 0
     }
@@ -145,7 +142,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 
 function checkHashAndShowView() {
     const hash = window.location.hash.substring(1);
-    const validViews = ['dashboard', 'products', 'new-product', 'sales', 'new-sale', 'reports', 'settings', 'database'];
+    const validViews = ['dashboard', 'products', 'new-product', 'sales', 'new-sale', 'reports', 'database'];
     
     if (hash && validViews.includes(hash)) {
         showView(hash);
@@ -223,9 +220,6 @@ function createInitialData() {
         settings: {
             defaultDebitFee: 2.0,
             defaultCreditFee: 4.5,
-            defaultTax: 6,
-            defaultMargin: 40,
-            monthlyOperationalExpenses: 4000,
             lastProductId: 0,
             lastSaleId: 0
         }
@@ -255,15 +249,6 @@ async function saveData() {
 }
 
 function loadData() {
-    // Carregar configurações nos campos
-    if (document.getElementById('default-debit-fee')) {
-        document.getElementById('default-debit-fee').value = sanitizeNumber(systemData.settings.defaultDebitFee);
-        document.getElementById('default-credit-fee').value = sanitizeNumber(systemData.settings.defaultCreditFee);
-        document.getElementById('default-tax').value = sanitizeNumber(systemData.settings.defaultTax);
-        document.getElementById('default-margin').value = sanitizeNumber(systemData.settings.defaultMargin);
-        document.getElementById('monthly-expenses').value = sanitizeNumber(systemData.settings.monthlyOperationalExpenses);
-    }
-    
     // Atualizar lista de produtos
     updateProductsList();
     updateSalesList();
@@ -336,7 +321,6 @@ function showView(viewName) {
         'sales': 'Vendas',
         'new-sale': 'Nova Venda',
         'reports': 'Relatórios',
-        'settings': 'Configurações',
         'database': 'Banco de Dados'
     };
     
@@ -403,8 +387,7 @@ function setupEventListeners() {
     }
     
     // Atualizar cálculos do produto em tempo real
-    const calcFields = ['purchase-cost', 'shipping-cost', 'operational-expenses', 
-                      'expected-sales', 'variable-fees', 'taxes', 'profit-margin'];
+    const calcFields = ['purchase-cost', 'profit-margin'];
     calcFields.forEach(fieldId => {
         const field = document.getElementById(fieldId);
         if (field) {
@@ -425,12 +408,6 @@ function setupEventListeners() {
         exportProductsBtn.addEventListener('click', () => {
             exportData('products');
         });
-    }
-    
-    // Configurações
-    const settingsForm = document.getElementById('settings-form');
-    if (settingsForm) {
-        settingsForm.addEventListener('submit', saveSettings);
     }
     
     const exportDataBtn = document.getElementById('export-data-btn');
@@ -570,98 +547,6 @@ function setupEventListeners() {
                     showAlert('Erro na migração ou nenhum dado para migrar', 'error');
                 }
             }
-        });
-    }
-    
-    // Criar backup manual
-    const createBackupBtn = document.getElementById('create-backup');
-    if (createBackupBtn) {
-        createBackupBtn.addEventListener('click', async () => {
-            showAlert('Criando backup...', 'info');
-            
-            // Simular criação de backup
-            await saveData();
-            showAlert('Backup criado com sucesso!', 'success');
-            updateDatabaseInfo();
-        });
-    }
-    
-    // Exportar dados completos
-    const exportDbBtn = document.getElementById('export-db');
-    if (exportDbBtn) {
-        exportDbBtn.addEventListener('click', async () => {
-            try {
-                showAlert('Exportando dados...', 'info');
-                
-                const exportDataStr = JSON.stringify(systemData, null, 2);
-                const blob = new Blob([exportDataStr], { type: 'application/json' });
-                const url = URL.createObjectURL(blob);
-                
-                const link = document.createElement('a');
-                link.href = url;
-                link.download = `camarim-backup-${new Date().toISOString().slice(0,10)}.json`;
-                link.click();
-                
-                URL.revokeObjectURL(url);
-                
-                showAlert('Backup exportado com sucesso!', 'success');
-                
-            } catch (error) {
-                showAlert('Erro ao exportar backup: ' + error.message, 'error');
-            }
-        });
-    }
-    
-    // Importar backup
-    const importBackupBtn = document.getElementById('import-backup');
-    if (importBackupBtn) {
-        importBackupBtn.addEventListener('click', async () => {
-            const fileInput = document.getElementById('backup-file');
-            const file = fileInput?.files[0];
-            
-            if (!file) {
-                showAlert('Selecione um arquivo de backup', 'error');
-                return;
-            }
-            
-            if (!confirm('ATENÇÃO: Esta ação irá substituir TODOS os dados atuais. Deseja continuar?')) {
-                return;
-            }
-            
-            const reader = new FileReader();
-            reader.onload = async (e) => {
-                try {
-                    showAlert('Importando backup...', 'info');
-                    
-                    const importData = JSON.parse(e.target.result);
-                    
-                    // Validar estrutura
-                    if (!importData.products || !Array.isArray(importData.products)) {
-                        throw new Error('Arquivo de backup inválido');
-                    }
-                    
-                    // Atualizar systemData
-                    systemData = {
-                        products: importData.products || [],
-                        sales: importData.sales || [],
-                        settings: importData.settings || systemData.settings
-                    };
-                    
-                    // Salvar dados
-                    await saveData();
-                    
-                    // Recarregar views
-                    loadData();
-                    updateDashboard();
-                    updateDatabaseInfo();
-                    
-                    showAlert('Backup importado com sucesso!', 'success');
-                    
-                } catch (error) {
-                    showAlert('Erro ao importar backup: ' + error.message, 'error');
-                }
-            };
-            reader.readAsText(file);
         });
     }
     
@@ -1058,7 +943,6 @@ function updateEditSaleProductsList() {
     });
     
     // Adicionar event listeners usando event delegation
-    // Primeiro, remove event listeners antigos
     const newContainer = container.cloneNode(true);
     container.parentNode.replaceChild(newContainer, container);
     
@@ -1627,7 +1511,7 @@ function printReceipt() {
 }
 
 // ============================================
-// 10. SISTEMA DE RELATÓRIOS EM PDF OTIMIZADO PARA IMPRESSÃO
+// 10. SISTEMA DE RELATÓRIOS EM PDF (VERSÃO SIMPLIFICADA)
 // ============================================
 
 function generatePDFReport() {
@@ -1646,23 +1530,7 @@ function generatePDFReport() {
     
     setTimeout(() => {
         // Gerar relatório com base no tipo
-        switch(reportType) {
-            case 'sales':
-                generateSalesReport(reportTitle, period, includeCharts, includeTables, reportFormat, reportOrientation);
-                break;
-            case 'products':
-                generateProductsReport(reportTitle, period, includeCharts, includeTables, reportFormat, reportOrientation);
-                break;
-            case 'financial':
-                generateFinancialReport(reportTitle, period, includeCharts, includeTables, reportFormat, reportOrientation);
-                break;
-            case 'inventory':
-                generateInventoryReport(reportTitle, period, includeCharts, includeTables, reportFormat, reportOrientation);
-                break;
-            default:
-                showAlert('Tipo de relatório não suportado', 'error');
-                return;
-        }
+        generateSalesReport(reportTitle, period, includeCharts, includeTables, reportFormat, reportOrientation);
         
         hideModal('pdf-report-modal');
     }, 100);
@@ -1737,341 +1605,6 @@ function getReportPeriod(period) {
     return { startDate, endDate };
 }
 
-// ============================================
-// FUNÇÕES DE FORMATAÇÃO PADRÃO ABNT
-// ============================================
-
-function addCoverPage(doc, title, reportType, period) {
-    const pageWidth = doc.internal.pageSize.width;
-    const pageHeight = doc.internal.pageSize.height;
-    
-    // Título principal centralizado
-    doc.setFontSize(16);
-    doc.setTextColor(0, 0, 0);
-    doc.text('CAMARIM BOUTIQUE', pageWidth / 2, 50, { align: 'center' });
-    
-    // Subtítulo
-    doc.setFontSize(12);
-    doc.text('Sistema de Gestão Comercial', pageWidth / 2, 65, { align: 'center' });
-    
-    // Linha divisória
-    doc.setDrawColor(26, 26, 46); // #1a1a2e
-    doc.setLineWidth(0.5);
-    doc.line(pageWidth * 0.25, 75, pageWidth * 0.75, 75);
-    
-    // Título do relatório
-    doc.setFontSize(14);
-    doc.text(title.toUpperCase(), pageWidth / 2, 95, { align: 'center' });
-    
-    // Tipo de relatório
-    doc.setFontSize(12);
-    doc.text(`Tipo: ${reportType}`, pageWidth / 2, 115, { align: 'center' });
-    
-    // Período
-    const periodText = `Período: ${period.startDate.toLocaleDateString('pt-BR')} a ${period.endDate.toLocaleDateString('pt-BR')}`;
-    doc.text(periodText, pageWidth / 2, 130, { align: 'center' });
-    
-    // Data de geração
-    doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, pageWidth / 2, 145, { align: 'center' });
-    
-    // Informações da empresa (rodapé)
-    doc.setFontSize(10);
-    doc.setTextColor(100, 100, 100);
-    doc.text('Documento de uso interno - Versão 1.0', pageWidth / 2, pageHeight - 40, { align: 'center' });
-    doc.text('Camarim Boutique | CNPJ: 12.345.678/0001-99', pageWidth / 2, pageHeight - 30, { align: 'center' });
-    doc.text('Sistema desenvolvido por Guilherme Silva Vanderley', pageWidth / 2, pageHeight - 20, { align: 'center' });
-}
-
-function addHeader(doc, title, pageNumber) {
-    const pageWidth = doc.internal.pageSize.width;
-    const pageHeight = doc.internal.pageSize.height;
-    
-    // Cabeçalho simples
-    doc.setFontSize(10);
-    doc.setTextColor(0, 0, 0);
-    
-    // Esquerda: Título
-    doc.text(title, 20, 15);
-    
-    // Centro: Data
-    doc.text(new Date().toLocaleDateString('pt-BR'), pageWidth / 2, 15, { align: 'center' });
-    
-    // Direita: Página
-    doc.text(`Página ${pageNumber}`, pageWidth - 20, 15, { align: 'right' });
-    
-    // Linha divisória
-    doc.setDrawColor(26, 26, 46); // #1a1a2e
-    doc.setLineWidth(0.3);
-    doc.line(20, 20, pageWidth - 20, 20);
-}
-
-function addPageNumber(doc, pageNumber) {
-    const pageWidth = doc.internal.pageSize.width;
-    const pageHeight = doc.internal.pageSize.height;
-    
-    doc.setFontSize(9);
-    doc.setTextColor(100, 100, 100);
-    doc.text(`Página ${pageNumber}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
-}
-
-function addTableOfContents(doc, sections) {
-    const pageWidth = doc.internal.pageSize.width;
-    
-    // Título
-    doc.setFontSize(14);
-    doc.setTextColor(0, 0, 0);
-    doc.text('SUMÁRIO', pageWidth / 2, 40, { align: 'center' });
-    
-    doc.setDrawColor(26, 26, 46);
-    doc.setLineWidth(0.5);
-    doc.line(pageWidth * 0.3, 45, pageWidth * 0.7, 45);
-    
-    // Lista de seções
-    doc.setFontSize(11);
-    doc.setTextColor(0, 0, 0);
-    
-    let y = 70;
-    sections.forEach((section, index) => {
-        // Número da seção
-        doc.setFontSize(10);
-        doc.setTextColor(255, 107, 139); // #ff6b8b
-        doc.text(`${index + 1}.`, 30, y);
-        
-        // Nome da seção
-        doc.setTextColor(0, 0, 0);
-        doc.text(section, 45, y);
-        
-        // Número da página
-        doc.setTextColor(100, 100, 100);
-        doc.text(`${index + 3}`, pageWidth - 30, y, { align: 'right' });
-        
-        y += 12;
-    });
-}
-
-function createTable(doc, headers, data, startX, startY, colWidths, pageWidth) {
-    const colPositions = [startX];
-    for (let i = 1; i < colWidths.length; i++) {
-        colPositions[i] = colPositions[i - 1] + colWidths[i - 1];
-    }
-    
-    // Verificar se a tabela cabe na página
-    const tableWidth = colWidths.reduce((a, b) => a + b, 0);
-    const availableWidth = pageWidth - startX - 20; // Margem direita de 20mm
-    
-    // Ajustar larguras se necessário
-    if (tableWidth > availableWidth) {
-        const scaleFactor = availableWidth / tableWidth;
-        for (let i = 0; i < colWidths.length; i++) {
-            colWidths[i] = colWidths[i] * scaleFactor;
-        }
-        
-        // Recalcular posições
-        colPositions[0] = startX;
-        for (let i = 1; i < colWidths.length; i++) {
-            colPositions[i] = colPositions[i - 1] + colWidths[i - 1];
-        }
-    }
-    
-    // Cabeçalho
-    doc.setFontSize(9);
-    doc.setTextColor(0, 0, 0);
-    
-    headers.forEach((header, i) => {
-        // Quebrar cabeçalhos muito longos em múltiplas linhas
-        const maxWidth = colWidths[i] - 4; // Margem de 2mm de cada lado
-        const fontSize = doc.internal.getFontSize();
-        const charWidth = fontSize * 0.5; // Aproximação de largura por caractere
-        const maxChars = Math.floor(maxWidth / charWidth);
-        
-        let displayHeader = header;
-        if (header.length > maxChars) {
-            // Encontrar o melhor ponto para quebrar
-            const words = header.split(' ');
-            let lines = [];
-            let currentLine = '';
-            
-            for (let word of words) {
-                if ((currentLine + ' ' + word).length <= maxChars) {
-                    currentLine = currentLine ? currentLine + ' ' + word : word;
-                } else {
-                    if (currentLine) lines.push(currentLine);
-                    currentLine = word.length > maxChars ? word.substring(0, maxChars - 1) + '…' : word;
-                }
-            }
-            if (currentLine) lines.push(currentLine);
-            
-            // Desenhar múltiplas linhas
-            lines.forEach((line, lineIndex) => {
-                doc.text(line, colPositions[i] + 2, startY + 5 + (lineIndex * 4));
-            });
-        } else {
-            doc.text(displayHeader, colPositions[i] + 2, startY + 5);
-        }
-    });
-    
-    // Linha do cabeçalho
-    doc.setDrawColor(26, 26, 46);
-    doc.setLineWidth(0.3);
-    doc.line(startX, startY - 2, startX + colWidths.reduce((a, b) => a + b, 0), startY - 2);
-    
-    // Calcular altura do cabeçalho (pode ter múltiplas linhas)
-    const headerHeight = Math.max(15, headers.reduce((max, header, i) => {
-        const maxWidth = colWidths[i] - 4;
-        const fontSize = doc.internal.getFontSize();
-        const charWidth = fontSize * 0.5;
-        const maxChars = Math.floor(maxWidth / charWidth);
-        
-        if (header.length > maxChars) {
-            const words = header.split(' ');
-            let lines = 1;
-            let currentLine = '';
-            
-            for (let word of words) {
-                if ((currentLine + ' ' + word).length <= maxChars) {
-                    currentLine = currentLine ? currentLine + ' ' + word : word;
-                } else {
-                    lines++;
-                    currentLine = word.length > maxChars ? word.substring(0, maxChars - 1) + '…' : word;
-                }
-            }
-            return Math.max(max, lines * 4 + 8);
-        }
-        return max;
-    }, 0));
-    
-    doc.line(startX, startY + headerHeight, startX + colWidths.reduce((a, b) => a + b, 0), startY + headerHeight);
-    
-    // Dados
-    let currentY = startY + headerHeight + 5;
-    let needNewPage = false;
-    
-    data.forEach((row, rowIndex) => {
-        if (currentY > 270) { // Verificar se ultrapassa o final da página
-            needNewPage = true;
-            return;
-        }
-        
-        // Alternar cores das linhas (cinza claro para linhas pares)
-        if (rowIndex % 2 === 0) {
-            doc.setFillColor(245, 245, 245);
-            doc.rect(startX, currentY - 5, colWidths.reduce((a, b) => a + b, 0), 10, 'F');
-        }
-        
-        doc.setFontSize(8);
-        doc.setTextColor(0, 0, 0);
-        
-        // Calcular altura máxima necessária para esta linha
-        let rowHeight = 10; // Altura mínima
-        
-        row.forEach((cell, cellIndex) => {
-            const maxWidth = colWidths[cellIndex] - 4;
-            const fontSize = doc.internal.getFontSize();
-            const charWidth = fontSize * 0.5;
-            const maxChars = Math.floor(maxWidth / charWidth);
-            
-            if (cell.length > maxChars) {
-                // Quebrar texto em múltiplas linhas
-                const words = cell.split(' ');
-                let lines = 1;
-                let currentLine = '';
-                
-                for (let word of words) {
-                    if ((currentLine + ' ' + word).length <= maxChars) {
-                        currentLine = currentLine ? currentLine + ' ' + word : word;
-                    } else {
-                        lines++;
-                        currentLine = word;
-                    }
-                }
-                
-                rowHeight = Math.max(rowHeight, lines * 4 + 6);
-            }
-        });
-        
-        // Desenhar células com quebra de linha
-        row.forEach((cell, cellIndex) => {
-            const maxWidth = colWidths[cellIndex] - 4;
-            const fontSize = doc.internal.getFontSize();
-            const charWidth = fontSize * 0.5;
-            const maxChars = Math.floor(maxWidth / charWidth);
-            
-            if (cell.length > maxChars) {
-                // Quebrar texto em múltiplas linhas
-                const words = cell.split(' ');
-                let lines = [];
-                let currentLine = '';
-                
-                for (let word of words) {
-                    if ((currentLine + ' ' + word).length <= maxChars) {
-                        currentLine = currentLine ? currentLine + ' ' + word : word;
-                    } else {
-                        if (currentLine) lines.push(currentLine);
-                        currentLine = word;
-                    }
-                }
-                if (currentLine) lines.push(currentLine);
-                
-                // Desenhar múltiplas linhas
-                lines.forEach((line, lineIndex) => {
-                    doc.text(line, colPositions[cellIndex] + 2, currentY + (lineIndex * 4));
-                });
-            } else {
-                doc.text(cell, colPositions[cellIndex] + 2, currentY);
-            }
-        });
-        
-        currentY += rowHeight;
-    });
-    
-    return { y: currentY, newPage: needNewPage };
-}
-
-function addSectionTitle(doc, title, y) {
-    doc.setFontSize(12);
-    doc.setTextColor(26, 26, 46); // #1a1a2e
-    doc.text(title, 20, y);
-    
-    doc.setDrawColor(255, 107, 139); // #ff6b8b
-    doc.setLineWidth(0.5);
-    doc.line(20, y + 2, 80, y + 2);
-    
-    return y + 15;
-}
-
-function addMetricCard(doc, title, value, unit, x, y, width, height) {
-    // Borda simples
-    doc.setDrawColor(200, 200, 200);
-    doc.setLineWidth(0.3);
-    doc.rect(x, y, width, height, 'S');
-    
-    // Título
-    doc.setFontSize(9);
-    doc.setTextColor(100, 100, 100);
-    doc.text(title, x + 5, y + 8);
-    
-    // Valor
-    doc.setFontSize(12);
-    doc.setTextColor(26, 26, 46); // #1a1a2e
-    
-    let displayValue;
-    if (unit === 'R$') {
-        displayValue = `R$ ${formatCurrency(value)}`;
-    } else if (unit === '%') {
-        displayValue = `${value.toFixed(1)}%`;
-    } else {
-        displayValue = `${value} ${unit}`;
-    }
-    
-    doc.text(displayValue, x + 5, y + 18);
-    
-    return y + height + 10;
-}
-
-// ============================================
-// RELATÓRIO DE VENDAS (OTIMIZADO)
-// ============================================
-
 async function generateSalesReport(title, period, includeCharts, includeTables, format, orientation) {
     try {
         const { jsPDF } = window.jspdf;
@@ -2097,473 +1630,35 @@ async function generateSalesReport(title, period, includeCharts, includeTables, 
         // Calcular métricas
         const metrics = calculateSalesMetrics(filteredSales);
         
-        // Página 1: Capa
-        addCoverPage(doc, title, 'Vendas', period);
-        
-        // Página 2: Sumário
-        doc.addPage();
-        addTableOfContents(doc, [
-            'Resumo Executivo',
-            'Métricas de Desempenho',
-            'Vendas por Atendente',
-            'Produtos Mais Vendidos',
-            'Análise Financeira',
-            'Métodos de Pagamento',
-            'Conclusões'
-        ]);
-        
-        // Página 3: Resumo Executivo
-        doc.addPage();
-        addHeader(doc, title, 3);
-        let currentY = addSectionTitle(doc, 'RESUMO EXECUTIVO', 40);
-        
-        // Período analisado
+        // Capa
+        doc.setFontSize(16);
+        doc.text('CAMARIM BOUTIQUE', 105, 50, { align: 'center' });
+        doc.setFontSize(12);
+        doc.text('Sistema de Gestão Comercial', 105, 65, { align: 'center' });
+        doc.setFontSize(14);
+        doc.text(title, 105, 95, { align: 'center' });
         doc.setFontSize(10);
-        doc.setTextColor(0, 0, 0);
-        doc.text(`Período analisado: ${period.startDate.toLocaleDateString('pt-BR')} a ${period.endDate.toLocaleDateString('pt-BR')}`, 20, currentY);
-        currentY += 10;
+        doc.text(`Período: ${period.startDate.toLocaleDateString('pt-BR')} a ${period.endDate.toLocaleDateString('pt-BR')}`, 105, 115, { align: 'center' });
+        doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 105, 130, { align: 'center' });
         
-        // Resumo numérico
-        const summaryData = [
-            `Total de vendas: ${metrics.totalSales}`,
-            `Receita total: R$ ${formatCurrency(metrics.totalRevenue)}`,
-            `Itens vendidos: ${metrics.totalItems}`,
-            `Ticket médio: R$ ${formatCurrency(metrics.averageTicket)}`,
-            `Maior venda: R$ ${formatCurrency(metrics.maxSale)}`
-        ];
-        
-        summaryData.forEach(item => {
-            doc.text(`• ${item}`, 25, currentY);
-            currentY += 8;
-        });
-        
-        // Análise
-        currentY += 10;
-        doc.setFontSize(11);
-        doc.setTextColor(26, 26, 46);
-        doc.text('Análise do Período:', 20, currentY);
-        currentY += 10;
-        
-        let analysis = '';
-        if (metrics.totalSales === 0) {
-            analysis = 'Nenhuma venda registrada no período analisado.';
-        } else {
-            const daysInPeriod = Math.ceil((period.endDate - period.startDate) / (1000 * 60 * 60 * 24)) + 1;
-            const avgDailySales = metrics.totalSales / daysInPeriod;
-            const avgDailyRevenue = metrics.totalRevenue / daysInPeriod;
-            
-            analysis = `Média diária: ${avgDailySales.toFixed(1)} vendas / R$ ${formatCurrency(avgDailyRevenue)}`;
-            
-            if (metrics.averageTicket > 100) {
-                analysis += '\nTicket médio acima da média esperada.';
-            } else if (metrics.averageTicket > 50) {
-                analysis += '\nTicket médio dentro da média esperada.';
-            } else {
-                analysis += '\nTicket médio abaixo da média esperada.';
-            }
-        }
-        
-        const splitAnalysis = doc.splitTextToSize(analysis, 170);
-        doc.setFontSize(10);
-        doc.setTextColor(0, 0, 0);
-        doc.text(splitAnalysis, 25, currentY);
-        currentY += splitAnalysis.length * 5 + 10;
-        
-        // Página 4: Métricas de Desempenho
+        // Resumo
         doc.addPage();
-        addHeader(doc, title, 4);
-        currentY = addSectionTitle(doc, 'MÉTRICAS DE DESEMPENHO', 40);
-        
-        // Cards de métricas
-        const metricCards = [
-            { title: 'Total de Vendas', value: metrics.totalSales, unit: 'vendas' },
-            { title: 'Receita Total', value: metrics.totalRevenue, unit: 'R$' },
-            { title: 'Itens Vendidos', value: metrics.totalItems, unit: 'unid.' },
-            { title: 'Ticket Médio', value: metrics.averageTicket, unit: 'R$' },
-            { title: 'Vendas/Dia', value: metrics.totalSales / (Math.ceil((period.endDate - period.startDate) / (1000 * 60 * 60 * 24)) + 1), unit: 'média' },
-            { title: 'Receita/Dia', value: metrics.totalRevenue / (Math.ceil((period.endDate - period.startDate) / (1000 * 60 * 60 * 24)) + 1), unit: 'R$' }
-        ];
-        
-        let cardY = currentY;
-        metricCards.forEach((card, index) => {
-            const x = 20 + (index % 3) * 60;
-            if (index % 3 === 0 && index > 0) cardY += 35;
-            
-            addMetricCard(doc, card.title, card.value, card.unit, x, cardY, 55, 25);
-        });
-        
-        // Vendas por dia da semana
-        cardY += 40;
-        doc.setFontSize(11);
-        doc.setTextColor(26, 26, 46);
-        doc.text('Vendas por Dia da Semana:', 20, cardY);
-        cardY += 10;
-        
-        const weekdays = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-        weekdays.forEach(day => {
-            const revenue = metrics.salesByWeekday[day] || 0;
-            const percentage = metrics.totalRevenue > 0 ? (revenue / metrics.totalRevenue * 100).toFixed(1) : '0.0';
-            
-            doc.setFontSize(9);
-            doc.setTextColor(0, 0, 0);
-            doc.text(`${day}:`, 25, cardY);
-            doc.text(`R$ ${formatCurrency(revenue)}`, 50, cardY);
-            doc.text(`(${percentage}%)`, 90, cardY);
-            
-            // Barra de porcentagem
-            const barWidth = 50;
-            const filledWidth = (percentage / 100) * barWidth;
-            doc.setFillColor(240, 240, 240);
-            doc.rect(110, cardY - 3, barWidth, 4, 'F');
-            doc.setFillColor(255, 107, 139); // #ff6b8b
-            doc.rect(110, cardY - 3, filledWidth, 4, 'F');
-            
-            cardY += 8;
-        });
-        
-        // Página 5: Vendas por Atendente
-        doc.addPage();
-        addHeader(doc, title, 5);
-        currentY = addSectionTitle(doc, 'VENDAS POR ATENDENTE', 40);
-        
-        // Calcular vendas por atendente
-        const salesByAttendant = {};
-        filteredSales.forEach(sale => {
-            const attendant = sale.attendant || 'Não informado';
-            if (!salesByAttendant[attendant]) {
-                salesByAttendant[attendant] = { 
-                    salesCount: 0, 
-                    revenue: 0, 
-                    items: 0 
-                };
-            }
-            salesByAttendant[attendant].salesCount++;
-            salesByAttendant[attendant].revenue += sale.total;
-            salesByAttendant[attendant].items += sale.items.reduce((sum, item) => sum + item.quantity, 0);
-        });
-        
-        // Ordenar por receita
-        const sortedAttendants = Object.entries(salesByAttendant)
-            .sort(([, a], [, b]) => b.revenue - a.revenue);
-        
-        // Tabela de atendentes
-        const headers = ['Atendente', 'Vendas', 'Receita (R$)', 'Itens', 'Ticket Médio'];
-        const tableData = sortedAttendants.map(([attendant, data]) => {
-            const avgTicket = data.salesCount > 0 ? data.revenue / data.salesCount : 0;
-            return [
-                attendant,
-                data.salesCount.toString(),
-                formatCurrency(data.revenue),
-                data.items.toString(),
-                formatCurrency(avgTicket)
-            ];
-        });
-        
-        const colWidths = [50, 20, 35, 20, 30];
-        const tableResult = createTable(doc, headers, tableData, 20, currentY, colWidths, doc.internal.pageSize.width);
-        currentY = tableResult.y;
-        
-        // Análise
-        currentY += 10;
-        if (sortedAttendants.length > 0) {
-            const topAttendant = sortedAttendants[0];
-            const totalRevenue = sortedAttendants.reduce((sum, [, data]) => sum + data.revenue, 0);
-            
-            doc.setFontSize(10);
-            doc.setTextColor(0, 0, 0);
-            doc.text(`Atendente com maior receita: ${topAttendant[0]} (R$ ${formatCurrency(topAttendant[1].revenue)})`, 20, currentY);
-            currentY += 8;
-            doc.text(`Representa ${((topAttendant[1].revenue / totalRevenue) * 100).toFixed(1)}% da receita total`, 20, currentY);
-        }
-        
-        // Página 6: Produtos Mais Vendidos
-        doc.addPage();
-        addHeader(doc, title, 6);
-        currentY = addSectionTitle(doc, 'PRODUTOS MAIS VENDIDOS', 40);
-        
-        // Calcular produtos mais vendidos
-        const productStats = {};
-        filteredSales.forEach(sale => {
-            sale.items.forEach(item => {
-                if (!productStats[item.productId]) {
-                    productStats[item.productId] = {
-                        quantity: 0,
-                        revenue: 0
-                    };
-                }
-                productStats[item.productId].quantity += item.quantity;
-                productStats[item.productId].revenue += item.quantity * item.price;
-            });
-        });
-        
-        // Top 10 produtos
-        const topProducts = Object.entries(productStats)
-            .map(([productId, stats]) => {
-                const product = systemData.products.find(p => p.id === productId);
-                return {
-                    name: product ? product.name : 'Produto desconhecido',
-                    category: product ? product.category : 'Desconhecida',
-                    ...stats
-                };
-            })
-            .sort((a, b) => b.quantity - a.quantity)
-            .slice(0, 10);
-        
-        // Tabela de produtos
-        const prodHeaders = ['#', 'Produto', 'Categoria', 'Qtd', 'Receita (R$)', 'Preço Médio'];
-        const prodData = topProducts.map((product, index) => {
-            const avgPrice = product.quantity > 0 ? product.revenue / product.quantity : 0;
-            return [
-                (index + 1).toString(),
-                product.name,
-                getCategoryName(product.category),
-                product.quantity.toString(),
-                formatCurrency(product.revenue),
-                formatCurrency(avgPrice)
-            ];
-        });
-        
-        const prodColWidths = [10, 50, 25, 20, 30, 25];
-        const prodResult = createTable(doc, prodHeaders, prodData, 20, currentY, prodColWidths, doc.internal.pageSize.width);
-        currentY = prodResult.y;
-        
-        // Análise
-        currentY += 10;
-        if (topProducts.length > 0) {
-            const totalRevenue = topProducts.reduce((sum, p) => sum + p.revenue, 0);
-            const totalQuantity = topProducts.reduce((sum, p) => sum + p.quantity, 0);
-            
-            doc.setFontSize(10);
-            doc.setTextColor(0, 0, 0);
-            doc.text(`Top produto: ${topProducts[0].name} (${topProducts[0].quantity} unidades)`, 20, currentY);
-            currentY += 8;
-            doc.text(`Top 10 representam ${totalQuantity} itens vendidos (R$ ${formatCurrency(totalRevenue)})`, 20, currentY);
-        }
-        
-        // Página 7: Análise Financeira
-        doc.addPage();
-        addHeader(doc, title, 7);
-        currentY = addSectionTitle(doc, 'ANÁLISE FINANCEIRA', 40);
-        
-        // Calcular métricas financeiras
-        let totalCost = 0;
-        let totalProfit = 0;
-        let totalDiscount = 0;
-        let totalFees = 0;
-        
-        filteredSales.forEach(sale => {
-            totalDiscount += sale.discount || 0;
-            totalFees += sale.fees || 0;
-            
-            sale.items.forEach(item => {
-                const product = systemData.products.find(p => p.id === item.productId);
-                if (product) {
-                    totalCost += (product.cmv || 0) * item.quantity;
-                    totalProfit += (item.price - (product.cmv || 0)) * item.quantity;
-                }
-            });
-        });
-        
-        // Demonstrativo financeiro
-        doc.setFontSize(10);
-        doc.setTextColor(0, 0, 0);
-        
-        const financialItems = [
-            { label: 'Receita Bruta de Vendas:', value: metrics.totalRevenue },
-            { label: '(-) Descontos Concedidos:', value: totalDiscount },
-            { label: '(-) Taxas e Comissões:', value: totalFees },
-            { label: '(=) Receita Líquida:', value: metrics.totalRevenue - totalDiscount - totalFees },
-            { label: '(-) Custo das Mercadorias:', value: totalCost },
-            { label: '(=) LUCRO BRUTO:', value: totalProfit }
-        ];
-        
-        let financeY = currentY;
-        financialItems.forEach(item => {
-            doc.text(item.label, 20, financeY);
-            doc.text(`R$ ${formatCurrency(item.value)}`, 120, financeY);
-            financeY += 10;
-            
-            if (item.label.includes('LUCRO BRUTO')) {
-                doc.setDrawColor(26, 26, 46);
-                doc.setLineWidth(0.5);
-                doc.line(20, financeY - 5, 150, financeY - 5);
-            }
-        });
-        
-        // Margens
-        financeY += 10;
-        const grossMargin = metrics.totalRevenue > 0 ? (totalProfit / metrics.totalRevenue * 100).toFixed(1) : '0.0';
-        const netRevenue = metrics.totalRevenue - totalDiscount - totalFees;
-        const netMargin = netRevenue > 0 ? (totalProfit / netRevenue * 100).toFixed(1) : '0.0';
-        
-        doc.text(`Margem Bruta: ${grossMargin}%`, 20, financeY);
-        doc.text(`Margem Líquida: ${netMargin}%`, 100, financeY);
-        financeY += 10;
-        
-        // Indicadores
-        const avgProfitPerSale = metrics.totalSales > 0 ? totalProfit / metrics.totalSales : 0;
-        const discountRate = metrics.totalRevenue > 0 ? (totalDiscount / metrics.totalRevenue * 100).toFixed(1) : '0.0';
-        const feeRate = metrics.totalRevenue > 0 ? (totalFees / metrics.totalRevenue * 100).toFixed(1) : '0.0';
-        
-        doc.text(`Lucro Médio por Venda: R$ ${formatCurrency(avgProfitPerSale)}`, 20, financeY);
-        financeY += 8;
-        doc.text(`Taxa de Desconto: ${discountRate}%`, 20, financeY);
-        doc.text(`Taxa de Comissões: ${feeRate}%`, 100, financeY);
-        
-        // Página 8: Métodos de Pagamento
-        doc.addPage();
-        addHeader(doc, title, 8);
-        currentY = addSectionTitle(doc, 'MÉTODOS DE PAGAMENTO', 40);
-        
-        // Distribuição por método
-        const paymentMethods = {};
-        filteredSales.forEach(sale => {
-            const method = sale.paymentMethod || 'Não informado';
-            if (!paymentMethods[method]) {
-                paymentMethods[method] = { count: 0, amount: 0 };
-            }
-            paymentMethods[method].count++;
-            paymentMethods[method].amount += sale.total;
-        });
-        
-        // Tabela de métodos
-        const payHeaders = ['Método', 'Transações', 'Valor (R$)', '%'];
-        const payData = Object.entries(paymentMethods)
-            .sort(([, a], [, b]) => b.amount - a.amount)
-            .map(([method, data]) => {
-                const percentage = metrics.totalRevenue > 0 ? ((data.amount / metrics.totalRevenue) * 100).toFixed(1) : '0.0';
-                const methodName = getPaymentMethodName(method);
-                return [
-                    methodName,
-                    data.count.toString(),
-                    formatCurrency(data.amount),
-                    `${percentage}%`
-                ];
-            });
-        
-        const payColWidths = [40, 25, 35, 20];
-        const payResult = createTable(doc, payHeaders, payData, 20, currentY, payColWidths, doc.internal.pageSize.width);
-        currentY = payResult.y;
-        
-        // Análise
-        currentY += 10;
-        if (Object.keys(paymentMethods).length > 0) {
-            const sortedMethods = Object.entries(paymentMethods).sort(([, a], [, b]) => b.amount - a.amount);
-            const topMethod = sortedMethods[0];
-            
-            doc.setFontSize(10);
-            doc.setTextColor(0, 0, 0);
-            doc.text(`Método predominante: ${getPaymentMethodName(topMethod[0])}`, 20, currentY);
-            currentY += 8;
-            doc.text(`Representa ${((topMethod[1].amount / metrics.totalRevenue) * 100).toFixed(1)}% do valor total`, 20, currentY);
-        }
-        
-        // Página 9: Conclusões
-        doc.addPage();
-        addHeader(doc, title, 9);
-        currentY = addSectionTitle(doc, 'CONCLUSÕES E RECOMENDAÇÕES', 40);
-        
-        // Conclusões
-        doc.setFontSize(10);
-        doc.setTextColor(0, 0, 0);
-        
-        let conclusions = [];
-        
-        if (metrics.totalSales === 0) {
-            conclusions = [
-                '1. Nenhuma venda registrada no período.',
-                '2. Revisar estratégias comerciais e operacionais.',
-                '3. Verificar sistema de registro de vendas.'
-            ];
-        } else {
-            conclusions = [
-                `1. Foram realizadas ${metrics.totalSales} vendas no período.`,
-                `2. Receita total: R$ ${formatCurrency(metrics.totalRevenue)}.`,
-                `3. Ticket médio: R$ ${formatCurrency(metrics.averageTicket)}.`,
-                '',
-                '4. Principais insights:'
-            ];
-            
-            if (metrics.averageTicket < 50) {
-                conclusions.push('   • Ticket médio abaixo do esperado.');
-            }
-            
-            if (parseFloat(discountRate) > 10) {
-                conclusions.push('   • Taxa de desconto elevada.');
-            }
-            
-            if (parseFloat(grossMargin) < 30) {
-                conclusions.push('   • Margem bruta abaixo de 30%.');
-            }
-        }
-        
-        conclusions.forEach(conclusion => {
-            if (conclusion === '') {
-                currentY += 5;
-            } else {
-                doc.text(conclusion, 20, currentY);
-                currentY += 8;
-            }
-        });
-        
-        // Recomendações
-        currentY += 10;
-        doc.setFontSize(11);
-        doc.setTextColor(26, 26, 46);
-        doc.text('Recomendações:', 20, currentY);
-        currentY += 10;
-        
-        let recommendations = [];
-        
-        if (metrics.totalSales > 0) {
-            if (metrics.averageTicket < 50) {
-                recommendations.push('• Implementar estratégias de upselling.');
-                recommendations.push('• Criar combos para aumentar valor médio.');
-            }
-            
-            if (parseFloat(discountRate) > 10) {
-                recommendations.push('• Revisar política de descontos.');
-                recommendations.push('• Limitar poder de desconto da equipe.');
-            }
-            
-            if (parseFloat(grossMargin) < 30) {
-                recommendations.push('• Revisar precificação dos produtos.');
-                recommendations.push('• Negociar melhores condições com fornecedores.');
-            }
-            
-            // Verificar estoque baixo
-            const lowStockProducts = systemData.products.filter(p => p.stock < 10);
-            if (lowStockProducts.length > 0) {
-                recommendations.push(`• Repor estoque de ${lowStockProducts.length} produtos.`);
-            }
-        } else {
-            recommendations = [
-                '• Realizar campanha promocional.',
-                '• Oferecer demonstração de produtos.',
-                '• Treinamento da equipe de vendas.',
-                '• Revisar estratégia comercial.'
-            ];
-        }
-        
-        if (recommendations.length === 0) {
-            recommendations = [
-                '• Manter estratégias atuais.',
-                '• Monitorar indicadores regularmente.'
-            ];
-        }
+        doc.setFontSize(14);
+        doc.text('RESUMO EXECUTIVO', 105, 30, { align: 'center' });
         
         doc.setFontSize(10);
-        doc.setTextColor(0, 0, 0);
-        recommendations.forEach(rec => {
-            doc.text(rec, 25, currentY);
-            currentY += 8;
-        });
+        let yPos = 50;
+        doc.text(`Total de vendas: ${metrics.totalSales}`, 20, yPos);
+        yPos += 10;
+        doc.text(`Receita total: R$ ${formatCurrency(metrics.totalRevenue)}`, 20, yPos);
+        yPos += 10;
+        doc.text(`Ticket médio: R$ ${formatCurrency(metrics.averageTicket)}`, 20, yPos);
         
         // Salvar PDF
-        const fileName = `relatorio_vendas_${new Date().toISOString().slice(0,10)}.pdf`;
+        const fileName = `relatorio_${new Date().toISOString().slice(0,10)}.pdf`;
         doc.save(fileName);
         
-        showAlert(`Relatório de vendas "${fileName}" gerado com sucesso! (${doc.internal.getNumberOfPages()} páginas)`, 'success');
+        showAlert(`Relatório "${fileName}" gerado com sucesso!`, 'success');
         
     } catch (error) {
         console.error('❌ Erro ao gerar relatório:', error);
@@ -2571,1445 +1666,15 @@ async function generateSalesReport(title, period, includeCharts, includeTables, 
     }
 }
 
-// ============================================
-// RELATÓRIO DE PRODUTOS (OTIMIZADO)
-// ============================================
-
-async function generateProductsReport(title, period, includeCharts, includeTables, format, orientation) {
-    try {
-        const { jsPDF } = window.jspdf;
-        if (!jsPDF) {
-            throw new Error('Biblioteca jsPDF não carregada');
-        }
-        
-        const pageSize = format === 'A3' ? 'a3' : format === 'letter' ? 'letter' : 'a4';
-        const isLandscape = orientation === 'landscape';
-        
-        const doc = new jsPDF({
-            orientation: isLandscape ? 'landscape' : 'portrait',
-            unit: 'mm',
-            format: pageSize
-        });
-        
-        // Calcular métricas de produtos
-        const metrics = calculateProductsMetrics();
-        
-        // Página 1: Capa
-        addCoverPage(doc, title, 'Produtos', period);
-        
-        // Página 2: Sumário
-        doc.addPage();
-        addTableOfContents(doc, [
-            'Resumo do Estoque',
-            'Distribuição por Categoria',
-            'Produtos com Estoque Baixo',
-            'Produtos Mais Rentáveis',
-            'Tabela Completa',
-            'Recomendações'
-        ]);
-        
-        // Página 3: Resumo do Estoque
-        doc.addPage();
-        addHeader(doc, title, 3);
-        let currentY = addSectionTitle(doc, 'RESUMO DO ESTOQUE', 40);
-        
-        // Métricas principais
-        const summaryMetrics = [
-            { title: 'Total de Produtos', value: metrics.totalProducts, unit: 'itens' },
-            { title: 'Itens em Estoque', value: metrics.totalStock, unit: 'unid.' },
-            { title: 'Valor Total', value: metrics.totalValue, unit: 'R$' },
-            { title: 'Custo Total', value: metrics.totalCost, unit: 'R$' },
-            { title: 'Lucro Potencial', value: metrics.totalProfitMargin, unit: 'R$' },
-            { title: 'Margem Média', value: metrics.averageMargin, unit: '%' }
-        ];
-        
-        let metricY = currentY;
-        summaryMetrics.forEach((metric, index) => {
-            const x = 20 + (index % 3) * 60;
-            if (index % 3 === 0 && index > 0) metricY += 35;
-            
-            addMetricCard(doc, metric.title, metric.value, metric.unit, x, metricY, 55, 25);
-        });
-        
-        // Análise
-        metricY += 40;
-        doc.setFontSize(11);
-        doc.setTextColor(26, 26, 46);
-        doc.text('Análise do Estoque:', 20, metricY);
-        metricY += 10;
-        
-        doc.setFontSize(10);
-        doc.setTextColor(0, 0, 0);
-        
-        let analysis = '';
-        if (metrics.totalProducts === 0) {
-            analysis = 'Nenhum produto cadastrado no sistema.';
-        } else {
-            const avgStockPerProduct = (metrics.totalStock / metrics.totalProducts).toFixed(1);
-            const lowStockCount = metrics.lowStockProducts.length;
-            
-            analysis = `Estoque médio por produto: ${avgStockPerProduct} unidades\n`;
-            analysis += `Produtos com estoque baixo (<10 unidades): ${lowStockCount}\n`;
-            analysis += `Margem de lucro média: ${metrics.averageMargin.toFixed(1)}%\n`;
-            analysis += `Categorias ativas: ${metrics.categoriesCount}`;
-        }
-        
-        const splitAnalysis = doc.splitTextToSize(analysis, 170);
-        doc.text(splitAnalysis, 25, metricY);
-        
-        // Página 4: Distribuição por Categoria
-        doc.addPage();
-        addHeader(doc, title, 4);
-        currentY = addSectionTitle(doc, 'DISTRIBUIÇÃO POR CATEGORIA', 40);
-        
-        // Tabela de categorias
-        const catHeaders = ['Categoria', 'Produtos', 'Estoque', 'Valor (R$)', 'Margem %'];
-        const catData = Object.entries(metrics.byCategory)
-            .sort(([, a], [, b]) => b.totalValue - a.totalValue)
-            .map(([category, data]) => [
-                getCategoryName(category),
-                data.count.toString(),
-                data.totalStock.toString(),
-                formatCurrency(data.totalValue),
-                data.avgMargin.toFixed(1)
-            ]);
-        
-        const catColWidths = [40, 20, 25, 35, 25];
-        const catResult = createTable(doc, catHeaders, catData, 20, currentY, catColWidths, doc.internal.pageSize.width);
-        currentY = catResult.y;
-        
-        // Análise por categoria
-        currentY += 10;
-        if (Object.keys(metrics.byCategory).length > 0) {
-            const sortedCats = Object.entries(metrics.byCategory)
-                .sort(([, a], [, b]) => b.totalValue - a.totalValue);
-            const topCategory = sortedCats[0];
-            
-            doc.setFontSize(10);
-            doc.setTextColor(0, 0, 0);
-            doc.text(`Categoria com maior valor: ${getCategoryName(topCategory[0])} (R$ ${formatCurrency(topCategory[1].totalValue)})`, 20, currentY);
-            currentY += 8;
-            
-            const highestMargin = sortedCats.reduce((best, [cat, data]) => 
-                data.avgMargin > best.margin ? { category: cat, margin: data.avgMargin } : best,
-                { category: '', margin: 0 }
-            );
-            
-            doc.text(`Maior margem: ${getCategoryName(highestMargin.category)} (${highestMargin.margin.toFixed(1)}%)`, 20, currentY);
-        }
-        
-        // Página 5: Produtos com Estoque Baixo
-        doc.addPage();
-        addHeader(doc, title, 5);
-        currentY = addSectionTitle(doc, 'PRODUTOS COM ESTOQUE BAIXO', 40);
-        
-        if (metrics.lowStockProducts.length === 0) {
-            doc.setFontSize(11);
-            doc.setTextColor(76, 175, 80);
-            doc.text('✓ Todos os produtos com estoque adequado', 20, currentY);
-        } else {
-            // Tabela de produtos com estoque baixo
-            const lowHeaders = ['Produto', 'Código', 'Categoria', 'Estoque', 'Mínimo'];
-            const lowData = metrics.lowStockProducts
-                .sort((a, b) => a.stock - b.stock)
-                .map(product => [
-                    product.name,
-                    product.id,
-                    getCategoryName(product.category),
-                    product.stock.toString(),
-                    '10'
-                ]);
-            
-            const lowColWidths = [50, 30, 30, 20, 20];
-            const lowResult = createTable(doc, lowHeaders, lowData, 20, currentY, lowColWidths, doc.internal.pageSize.width);
-            currentY = lowResult.y;
-            
-            // Alerta
-            currentY += 10;
-            doc.setFontSize(11);
-            doc.setTextColor(244, 67, 54);
-            doc.text(`ATENÇÃO: ${metrics.lowStockProducts.length} produtos precisam de reposição!`, 20, currentY);
-            
-            // Estimativa de investimento
-            currentY += 10;
-            doc.setFontSize(10);
-            doc.setTextColor(0, 0, 0);
-            
-            const totalInvestment = metrics.lowStockProducts.reduce((sum, product) => {
-                const needed = 10 - product.stock;
-                return sum + (product.cmv || 0) * needed;
-            }, 0);
-            
-            doc.text(`Investimento estimado para reposição: R$ ${formatCurrency(totalInvestment)}`, 20, currentY);
-        }
-        
-        // Página 6: Produtos Mais Rentáveis
-        doc.addPage();
-        addHeader(doc, title, 6);
-        currentY = addSectionTitle(doc, 'PRODUTOS MAIS RENTÁVEIS', 40);
-        
-        // Top 10 produtos por lucro potencial
-        const profitableProducts = systemData.products
-            .map(product => ({
-                ...product,
-                potentialProfit: (product.sellingPrice - (product.cmv || 0)) * product.stock,
-                profitMargin: product.cmv > 0 ? ((product.sellingPrice - product.cmv) / product.cmv * 100) : 0
-            }))
-            .sort((a, b) => b.potentialProfit - a.potentialProfit)
-            .slice(0, 10);
-        
-        // Tabela de produtos rentáveis
-        const profitHeaders = ['#', 'Produto', 'Categoria', 'Estoque', 'Preço', 'Lucro Pot.', 'Margem %'];
-        const profitData = profitableProducts.map((product, index) => {
-            const marginColor = product.profitMargin >= 40 ? '🟢' : product.profitMargin >= 30 ? '🟡' : '🔴';
-            return [
-                (index + 1).toString(),
-                product.name,
-                getCategoryName(product.category),
-                product.stock.toString(),
-                formatCurrency(product.sellingPrice),
-                formatCurrency(product.potentialProfit),
-                `${product.profitMargin.toFixed(1)}% ${marginColor}`
-            ];
-        });
-        
-        const profitColWidths = [10, 40, 25, 20, 25, 30, 25];
-        const profitResult = createTable(doc, profitHeaders, profitData, 20, currentY, profitColWidths, doc.internal.pageSize.width);
-        currentY = profitResult.y;
-        
-        // Análise
-        currentY += 10;
-        if (profitableProducts.length > 0) {
-            const topProduct = profitableProducts[0];
-            const totalPotential = profitableProducts.reduce((sum, p) => sum + p.potentialProfit, 0);
-            
-            doc.setFontSize(10);
-            doc.setTextColor(0, 0, 0);
-            doc.text(`Produto mais rentável: ${topProduct.name} (R$ ${formatCurrency(topProduct.potentialProfit)})`, 20, currentY);
-            currentY += 8;
-            doc.text(`Lucro potencial top 10: R$ ${formatCurrency(totalPotential)}`, 20, currentY);
-        }
-        
-        // Página 7: Tabela Completa (se habilitado)
-        if (includeTables && systemData.products.length > 0) {
-            doc.addPage();
-            addHeader(doc, title, 7);
-            currentY = addSectionTitle(doc, 'TABELA COMPLETA DE PRODUTOS', 40);
-            
-            doc.setFontSize(9);
-            doc.setTextColor(100, 100, 100);
-            doc.text(`Total: ${systemData.products.length} produtos`, 20, currentY);
-            currentY += 10;
-            
-            // Configuração da tabela
-            const isLandscapeNow = doc.internal.pageSize.width > doc.internal.pageSize.height;
-            const pageWidth = doc.internal.pageSize.width;
-            
-            // Ajustar colunas para caber na página
-            const fullHeaders = ['Código', 'Nome', 'Categoria', 'Custo', 'Preço', 'Margem', 'Estoque', 'Valor'];
-            
-            // Larguras ajustáveis baseadas na orientação
-            let fullColWidths;
-            if (isLandscapeNow) {
-                // Modo paisagem - mais espaço
-                fullColWidths = [25, 45, 25, 25, 25, 25, 20, 25];
-            } else {
-                // Modo retrato - colunas mais estreitas
-                fullColWidths = [20, 35, 20, 20, 20, 20, 15, 20];
-            }
-            
-            // Verificar se ainda não cabe e ajustar mais
-            const totalTableWidth = fullColWidths.reduce((a, b) => a + b, 0);
-            const availableWidth = pageWidth - 40; // 20mm de cada lado
-            
-            if (totalTableWidth > availableWidth) {
-                const scaleFactor = availableWidth / totalTableWidth;
-                for (let i = 0; i < fullColWidths.length; i++) {
-                    fullColWidths[i] = Math.floor(fullColWidths[i] * scaleFactor);
-                }
-            }
-            
-            let pageStart = 0;
-            const itemsPerPage = isLandscapeNow ? 20 : 15; // Menos linhas para acomodar quebras
-            
-            while (pageStart < systemData.products.length) {
-                if (pageStart > 0) {
-                    doc.addPage();
-                    addHeader(doc, `${title} (cont.)`, doc.internal.getNumberOfPages());
-                    currentY = 40;
-                }
-                
-                const pageProducts = systemData.products.slice(pageStart, pageStart + itemsPerPage);
-                const fullData = pageProducts.map(product => {
-                    const margin = product.cmv > 0 ? ((product.sellingPrice - product.cmv) / product.cmv * 100).toFixed(1) : '0.0';
-                    const totalValue = product.sellingPrice * product.stock;
-                    
-                    return [
-                        product.id,
-                        product.name,
-                        getCategoryName(product.category),
-                        formatCurrency(product.cmv || 0),
-                        formatCurrency(product.sellingPrice),
-                        `${margin}%`,
-                        product.stock.toString(),
-                        formatCurrency(totalValue)
-                    ];
-                });
-                
-                const fullResult = createTable(doc, fullHeaders, fullData, 20, currentY, fullColWidths, pageWidth);
-                currentY = fullResult.y;
-                
-                if (fullResult.newPage) {
-                    doc.addPage();
-                    currentY = 40;
-                }
-                
-                // Informação de página
-                currentY += 10;
-                doc.setFontSize(8);
-                doc.setTextColor(100, 100, 100);
-                doc.text(`Página ${Math.floor(pageStart / itemsPerPage) + 1} de ${Math.ceil(systemData.products.length / itemsPerPage)}`, 
-                        pageWidth / 2, currentY, { align: 'center' });
-                
-                pageStart += itemsPerPage;
-            }
-        }
-        
-        // Página 8: Recomendações
-        doc.addPage();
-        addHeader(doc, title, includeTables && systemData.products.length > 0 ? 8 : 7);
-        currentY = addSectionTitle(doc, 'RECOMENDAÇÕES DE GESTÃO', 40);
-        
-        // Situação atual
-        doc.setFontSize(10);
-        doc.setTextColor(0, 0, 0);
-        
-        const situation = [
-            `• Produtos cadastrados: ${metrics.totalProducts}`,
-            `• Valor do estoque: R$ ${formatCurrency(metrics.totalValue)}`,
-            `• Margem média: ${metrics.averageMargin.toFixed(1)}%`,
-            `• Produtos com estoque baixo: ${metrics.lowStockProducts.length}`,
-            `• Categorias: ${metrics.categoriesCount}`
-        ];
-        
-        situation.forEach(item => {
-            doc.text(item, 20, currentY);
-            currentY += 8;
-        });
-        
-        // Recomendações
-        currentY += 10;
-        doc.setFontSize(11);
-        doc.setTextColor(26, 26, 46);
-        doc.text('Ações Recomendadas:', 20, currentY);
-        currentY += 10;
-        
-        let recommendations = [];
-        
-        if (metrics.lowStockProducts.length > 0) {
-            recommendations.push(`1. REPOR ESTOQUE de ${metrics.lowStockProducts.length} produtos`);
-            recommendations.push('   • Priorizar produtos com estoque crítico');
-            recommendations.push('   • Negociar prazos com fornecedores');
-        }
-        
-        if (metrics.averageMargin < 30) {
-            recommendations.push('2. OTIMIZAR MARGENS');
-            recommendations.push('   • Revisar precificação');
-            recommendations.push('   • Negociar com fornecedores');
-        }
-        
-        const slowMoving = systemData.products.filter(p => p.stock > 50).length;
-        if (slowMoving > 0) {
-            recommendations.push(`3. PROMOVER ${slowMoving} PRODUTOS PARADOS`);
-            recommendations.push('   • Criar promoções');
-            recommendations.push('   • Fazer combos');
-        }
-        
-        if (recommendations.length === 0) {
-            recommendations = [
-                '✅ Estoque bem gerenciado',
-                '   • Manter processos atuais',
-                '   • Monitorar regularmente'
-            ];
-        }
-        
-        doc.setFontSize(10);
-        doc.setTextColor(0, 0, 0);
-        recommendations.forEach(rec => {
-            doc.text(rec, 25, currentY);
-            currentY += 8;
-        });
-        
-        // Plano de ação
-        currentY += 10;
-        doc.setFontSize(11);
-        doc.setTextColor(26, 26, 46);
-        doc.text('Plano de Ação:', 20, currentY);
-        currentY += 10;
-        
-        const actionPlan = [
-            'SEMANA 1: Reposição de estoque crítico',
-            'SEMANA 2-3: Análise de precificação',
-            'SEMANA 4: Revisão de categorias',
-            'CONTÍNUO: Monitoramento de indicadores'
-        ];
-        
-        doc.setFontSize(10);
-        doc.setTextColor(0, 0, 0);
-        actionPlan.forEach(action => {
-            doc.text(`• ${action}`, 25, currentY);
-            currentY += 8;
-        });
-        
-        // Salvar PDF
-        const fileName = `relatorio_produtos_${new Date().toISOString().slice(0,10)}.pdf`;
-        doc.save(fileName);
-        
-        showAlert(`Relatório de produtos "${fileName}" gerado com sucesso! (${doc.internal.getNumberOfPages()} páginas)`, 'success');
-        
-    } catch (error) {
-        console.error('❌ Erro ao gerar relatório de produtos:', error);
-        showAlert('Erro ao gerar relatório: ' + error.message, 'error');
-    }
-}
-
-function calculateProductsMetrics() {
-    const inventoryData = calculateInventoryValue();
-    
-    // Agrupar por categoria
-    const byCategory = {};
-    systemData.products.forEach(product => {
-        const category = product.category || 'Sem categoria';
-        if (!byCategory[category]) {
-            byCategory[category] = {
-                count: 0,
-                totalStock: 0,
-                totalValue: 0,
-                totalCost: 0,
-                avgMargin: 0
-            };
-        }
-        byCategory[category].count++;
-        byCategory[category].totalStock += product.stock;
-        byCategory[category].totalValue += product.sellingPrice * product.stock;
-        byCategory[category].totalCost += (product.cmv || 0) * product.stock;
-    });
-    
-    // Calcular margem média por categoria
-    Object.keys(byCategory).forEach(category => {
-        const data = byCategory[category];
-        data.avgMargin = data.totalCost > 0 ? 
-            ((data.totalValue - data.totalCost) / data.totalCost * 100) : 0;
-    });
-    
-    // Produtos com baixo estoque
-    const lowStockProducts = systemData.products.filter(p => p.stock < 10);
-    
-    return {
-        totalProducts: systemData.products.length,
-        totalStock: inventoryData.totalItems,
-        totalValue: inventoryData.totalSellingValue,
-        totalCost: inventoryData.totalCostValue,
-        totalProfitMargin: inventoryData.totalProfitMargin,
-        averageMargin: inventoryData.averageMargin,
-        byCategory,
-        lowStockProducts,
-        categoriesCount: Object.keys(byCategory).length
-    };
-}
-
-// ============================================
-// RELATÓRIO FINANCEIRO (OTIMIZADO)
-// ============================================
-
-async function generateFinancialReport(title, period, includeCharts, includeTables, format, orientation) {
-    try {
-        const { jsPDF } = window.jspdf;
-        if (!jsPDF) {
-            throw new Error('Biblioteca jsPDF não carregada');
-        }
-        
-        const pageSize = format === 'A3' ? 'a3' : format === 'letter' ? 'letter' : 'a4';
-        const isLandscape = orientation === 'landscape';
-        
-        const doc = new jsPDF({
-            orientation: isLandscape ? 'landscape' : 'portrait',
-            unit: 'mm',
-            format: pageSize
-        });
-        
-        // Filtrar vendas no período
-        const filteredSales = systemData.sales.filter(sale => {
-            const saleDate = new Date(sale.date);
-            return saleDate >= period.startDate && saleDate <= period.endDate;
-        });
-        
-        // Calcular métricas financeiras
-        const metrics = calculateFinancialMetrics(filteredSales);
-        
-        // Página 1: Capa
-        addCoverPage(doc, title, 'Financeiro', period);
-        
-        // Página 2: Sumário
-        doc.addPage();
-        addTableOfContents(doc, [
-            'Demonstrativo Financeiro',
-            'Análise de Resultados',
-            'Fluxo de Caixa',
-            'Margens e Rentabilidade',
-            'Métodos de Pagamento',
-            'Projeções e Metas'
-        ]);
-        
-        // Página 3: Demonstrativo Financeiro
-        doc.addPage();
-        addHeader(doc, title, 3);
-        let currentY = addSectionTitle(doc, 'DEMONSTRATIVO FINANCEIRO', 40);
-        
-        // Período
-        doc.setFontSize(10);
-        doc.setTextColor(100, 100, 100);
-        doc.text(`Período: ${period.startDate.toLocaleDateString('pt-BR')} a ${period.endDate.toLocaleDateString('pt-BR')}`, 20, currentY);
-        currentY += 10;
-        
-        // Demonstrativo
-        doc.setFontSize(10);
-        doc.setTextColor(0, 0, 0);
-        
-        const financialItems = [
-            { label: 'RECEITA BRUTA DE VENDAS', value: metrics.totalRevenue },
-            { label: '(-) Descontos Concedidos', value: metrics.totalDiscount },
-            { label: '(-) Taxas e Comissões', value: metrics.totalFees },
-            { label: '(=) RECEITA LÍQUIDA', value: metrics.netRevenue },
-            { label: '(-) Custo das Mercadorias Vendidas', value: metrics.totalCost },
-            { label: '(=) LUCRO BRUTO', value: metrics.totalProfit }
-        ];
-        
-        let financeY = currentY;
-        financialItems.forEach(item => {
-            doc.text(item.label, 20, financeY);
-            doc.text(`R$ ${formatCurrency(item.value)}`, 120, financeY);
-            
-            if (item.label.includes('RECEITA LÍQUIDA') || item.label.includes('LUCRO BRUTO')) {
-                doc.setDrawColor(26, 26, 46);
-                doc.setLineWidth(0.5);
-                doc.line(20, financeY + 2, 150, financeY + 2);
-            }
-            
-            financeY += 10;
-        });
-        
-        // Indicadores
-        financeY += 10;
-        doc.setFontSize(11);
-        doc.setTextColor(26, 26, 46);
-        doc.text('Indicadores de Desempenho:', 20, financeY);
-        financeY += 10;
-        
-        doc.setFontSize(10);
-        doc.setTextColor(0, 0, 0);
-        
-        const indicators = [
-            `Margem Bruta: ${metrics.grossMargin.toFixed(1)}%`,
-            `Margem Líquida: ${metrics.netMargin.toFixed(1)}%`,
-            `Ticket Médio: R$ ${formatCurrency(metrics.avgTicket)}`,
-            `Lucro Médio/Venda: R$ ${formatCurrency(metrics.avgProfitPerSale)}`,
-            `Taxa de Desconto: ${metrics.discountRate.toFixed(1)}%`,
-            `Taxa de Comissões: ${metrics.feeRate.toFixed(1)}%`
-        ];
-        
-        indicators.forEach((indicator, index) => {
-            const x = 20 + (index % 2) * 100;
-            if (index % 2 === 0 && index > 0) financeY += 10;
-            
-            doc.text(indicator, x, financeY);
-            
-            if (index % 2 === 1) financeY += 10;
-        });
-        
-        // Página 4: Análise de Resultados
-        doc.addPage();
-        addHeader(doc, title, 4);
-        currentY = addSectionTitle(doc, 'ANÁLISE DE RESULTADOS', 40);
-        
-        // Composição da receita
-        doc.setFontSize(11);
-        doc.setTextColor(26, 26, 46);
-        doc.text('Composição da Receita:', 20, currentY);
-        currentY += 10;
-        
-        if (metrics.totalRevenue > 0) {
-            const components = [
-                { label: 'Receita Bruta', value: metrics.totalRevenue, color: 'black' },
-                { label: 'Descontos', value: metrics.totalDiscount, color: '#666' },
-                { label: 'Taxas', value: metrics.totalFees, color: '#999' },
-                { label: 'Receita Líquida', value: metrics.netRevenue, color: '#1a1a2e' }
-            ];
-            
-            components.forEach(comp => {
-                const percentage = (comp.value / metrics.totalRevenue * 100).toFixed(1);
-                
-                doc.setFontSize(10);
-                doc.setTextColor(comp.color === '#1a1a2e' ? 26 : 0, comp.color === '#1a1a2e' ? 26 : 0, comp.color === '#1a1a2e' ? 46 : 0);
-                doc.text(`${comp.label}:`, 25, currentY);
-                doc.text(`R$ ${formatCurrency(comp.value)}`, 80, currentY);
-                doc.text(`(${percentage}%)`, 130, currentY);
-                
-                currentY += 8;
-            });
-        }
-        
-        // Análise
-        currentY += 10;
-        doc.setFontSize(11);
-        doc.setTextColor(26, 26, 46);
-        doc.text('Análise do Período:', 20, currentY);
-        currentY += 10;
-        
-        if (metrics.totalRevenue === 0) {
-            doc.setFontSize(10);
-            doc.setTextColor(0, 0, 0);
-            doc.text('Sem movimentação financeira no período.', 25, currentY);
-        } else {
-            let analysis = [];
-            
-            // Análise de margem
-            if (metrics.grossMargin >= 40) {
-                analysis.push('• Margem bruta excelente (acima de 40%)');
-            } else if (metrics.grossMargin >= 30) {
-                analysis.push('• Margem bruta boa (30-40%)');
-            } else if (metrics.grossMargin >= 20) {
-                analysis.push('• Margem bruta adequada (20-30%)');
-            } else {
-                analysis.push('• Margem bruta baixa (abaixo de 20%)');
-            }
-            
-            // Análise de descontos
-            if (metrics.discountRate > 15) {
-                analysis.push('• Taxa de desconto muito alta (acima de 15%)');
-            } else if (metrics.discountRate > 10) {
-                analysis.push('• Taxa de desconto elevada (10-15%)');
-            }
-            
-            // Análise de ticket
-            if (metrics.avgTicket > 100) {
-                analysis.push('• Ticket médio excelente (acima de R$ 100)');
-            } else if (metrics.avgTicket > 50) {
-                analysis.push('• Ticket médio satisfatório (R$ 50-100)');
-            } else {
-                analysis.push('• Ticket médio baixo (abaixo de R$ 50)');
-            }
-            
-            doc.setFontSize(10);
-            doc.setTextColor(0, 0, 0);
-            analysis.forEach(item => {
-                doc.text(item, 25, currentY);
-                currentY += 8;
-            });
-        }
-        
-        // Página 5: Fluxo de Caixa
-        doc.addPage();
-        addHeader(doc, title, 5);
-        currentY = addSectionTitle(doc, 'FLUXO DE CAIXA', 40);
-        
-        // Agrupar por dia
-        const dailyCashFlow = {};
-        filteredSales.forEach(sale => {
-            const saleDate = new Date(sale.date).toISOString().split('T')[0];
-            if (!dailyCashFlow[saleDate]) {
-                dailyCashFlow[saleDate] = {
-                    revenue: 0,
-                    count: 0
-                };
-            }
-            dailyCashFlow[saleDate].revenue += sale.total;
-            dailyCashFlow[saleDate].count++;
-        });
-        
-        // Ordenar por data
-        const sortedDays = Object.entries(dailyCashFlow)
-            .sort(([a], [b]) => new Date(a) - new Date(b))
-            .slice(0, 15); // Limitar a 15 dias para evitar sobrecarga
-            
-        if (sortedDays.length === 0) {
-            doc.setFontSize(10);
-            doc.setTextColor(100, 100, 100);
-            doc.text('Sem movimentação de caixa no período.', 20, currentY);
-        } else {
-            // Tabela de fluxo
-            const flowHeaders = ['Data', 'Vendas', 'Receita (R$)', 'Acumulado (R$)'];
-            let flowData = [];
-            let runningTotal = 0;
-            
-            sortedDays.forEach(([date, data]) => {
-                const dateObj = new Date(date);
-                const dateStr = `${dateObj.getDate().toString().padStart(2, '0')}/${(dateObj.getMonth() + 1).toString().padStart(2, '0')}`;
-                runningTotal += data.revenue;
-                
-                flowData.push([
-                    dateStr,
-                    data.count.toString(),
-                    formatCurrency(data.revenue),
-                    formatCurrency(runningTotal)
-                ]);
-            });
-            
-            const flowColWidths = [25, 20, 35, 40];
-            const flowResult = createTable(doc, flowHeaders, flowData, 20, currentY, flowColWidths, doc.internal.pageSize.width);
-            currentY = flowResult.y;
-            
-            // Estatísticas
-            currentY += 10;
-            const totalRevenue = sortedDays.reduce((sum, [, data]) => sum + data.revenue, 0);
-            const avgDailyRevenue = totalRevenue / sortedDays.length;
-            const maxDay = sortedDays.reduce((max, [, data]) => data.revenue > max.revenue ? { revenue: data.revenue } : max, { revenue: 0 });
-            const minDay = sortedDays.reduce((min, [, data]) => data.revenue < min.revenue ? { revenue: data.revenue } : min, { revenue: Infinity });
-            
-            doc.setFontSize(10);
-            doc.setTextColor(0, 0, 0);
-            
-            const stats = [
-                `Período: ${sortedDays.length} dias`,
-                `Receita total: R$ ${formatCurrency(totalRevenue)}`,
-                `Média diária: R$ ${formatCurrency(avgDailyRevenue)}`,
-                `Variação: R$ ${formatCurrency(maxDay.revenue)} a R$ ${formatCurrency(minDay.revenue)}`
-            ];
-            
-            stats.forEach(stat => {
-                doc.text(stat, 20, currentY);
-                currentY += 8;
-            });
-        }
-        
-        // Página 6: Margens e Rentabilidade
-        doc.addPage();
-        addHeader(doc, title, 6);
-        currentY = addSectionTitle(doc, 'MARGENS E RENTABILIDADE', 40);
-        
-        // Quadro de rentabilidade
-        doc.setFontSize(10);
-        doc.setTextColor(0, 0, 0);
-        
-        const profitability = [
-            { label: 'Margem Bruta', value: metrics.grossMargin, benchmark: 35 },
-            { label: 'Margem Líquida', value: metrics.netMargin, benchmark: 20 },
-            { label: 'Retorno sobre Vendas', value: metrics.totalRevenue > 0 ? (metrics.totalProfit / metrics.totalRevenue * 100) : 0, benchmark: 25 },
-            { label: 'Retorno sobre Custo', value: metrics.totalCost > 0 ? (metrics.totalProfit / metrics.totalCost * 100) : 0, benchmark: 50 }
-        ];
-        
-        let profitY = currentY;
-        profitability.forEach(item => {
-            const difference = item.value - item.benchmark;
-            const status = difference >= 0 ? 'acima' : 'abaixo';
-            
-            doc.text(`${item.label}:`, 20, profitY);
-            doc.text(`${item.value.toFixed(1)}%`, 80, profitY);
-            
-            if (Math.abs(difference) > 5) {
-                doc.setTextColor(difference >= 0 ? 76 : 244, difference >= 0 ? 175 : 67, difference >= 0 ? 80 : 54);
-                doc.text(`${Math.abs(difference).toFixed(1)}% ${status}`, 120, profitY);
-                doc.setTextColor(0, 0, 0);
-            } else {
-                doc.setTextColor(100, 100, 100);
-                doc.text('dentro da média', 120, profitY);
-                doc.setTextColor(0, 0, 0);
-            }
-            
-            doc.setTextColor(100, 100, 100);
-            doc.text(`(média: ${item.benchmark}%)`, 170, profitY);
-            doc.setTextColor(0, 0, 0);
-            
-            profitY += 10;
-        });
-        
-        // Análise de rentabilidade
-        profitY += 10;
-        doc.setFontSize(11);
-        doc.setTextColor(26, 26, 46);
-        doc.text('Análise de Rentabilidade:', 20, profitY);
-        profitY += 10;
-        
-        if (metrics.totalRevenue > 0) {
-            const profitabilityScore = (metrics.netMargin / 25) * 100;
-            let analysis = '';
-            
-            if (profitabilityScore >= 80) {
-                analysis = 'Excelente rentabilidade. Operando com eficiência acima da média do setor.';
-            } else if (profitabilityScore >= 60) {
-                analysis = 'Boa rentabilidade. Eficiência satisfatória com espaço para otimização.';
-            } else if (profitabilityScore >= 40) {
-                analysis = 'Rentabilidade moderada. Atenção necessária para melhorar resultados.';
-            } else {
-                analysis = 'Rentabilidade crítica. Ação imediata necessária para reverter situação.';
-            }
-            
-            doc.setFontSize(10);
-            doc.setTextColor(0, 0, 0);
-            const splitAnalysis = doc.splitTextToSize(analysis, 160);
-            doc.text(splitAnalysis, 25, profitY);
-        }
-        
-        // Página 7: Métodos de Pagamento
-        doc.addPage();
-        addHeader(doc, title, 7);
-        currentY = addSectionTitle(doc, 'MÉTODOS DE PAGAMENTO', 40);
-        
-        // Distribuição por método
-        const paymentMethods = {};
-        filteredSales.forEach(sale => {
-            const method = sale.paymentMethod || 'Não informado';
-            if (!paymentMethods[method]) {
-                paymentMethods[method] = { count: 0, amount: 0 };
-            }
-            paymentMethods[method].count++;
-            paymentMethods[method].amount += sale.total;
-        });
-        
-        // Tabela de métodos
-        const payHeaders = ['Método', 'Transações', 'Valor (R$)', '% Total'];
-        const payData = Object.entries(paymentMethods)
-            .sort(([, a], [, b]) => b.amount - a.amount)
-            .map(([method, data]) => {
-                const percentage = metrics.totalRevenue > 0 ? ((data.amount / metrics.totalRevenue) * 100).toFixed(1) : '0.0';
-                return [
-                    getPaymentMethodName(method),
-                    data.count.toString(),
-                    formatCurrency(data.amount),
-                    `${percentage}%`
-                ];
-            });
-        
-        const payColWidths = [35, 25, 35, 20];
-        const payResult = createTable(doc, payHeaders, payData, 20, currentY, payColWidths, doc.internal.pageSize.width);
-        currentY = payResult.y;
-        
-        // Análise
-        currentY += 10;
-        if (Object.keys(paymentMethods).length > 0) {
-            const sortedMethods = Object.entries(paymentMethods).sort(([, a], [, b]) => b.amount - a.amount);
-            const topMethod = sortedMethods[0];
-            
-            doc.setFontSize(10);
-            doc.setTextColor(0, 0, 0);
-            doc.text(`Método predominante: ${getPaymentMethodName(topMethod[0])}`, 20, currentY);
-            currentY += 8;
-            doc.text(`Representa ${((topMethod[1].amount / metrics.totalRevenue) * 100).toFixed(1)}% do valor total`, 20, currentY);
-        }
-        
-        // Página 8: Projeções e Metas
-        doc.addPage();
-        addHeader(doc, title, 8);
-        currentY = addSectionTitle(doc, 'PROJEÇÕES E METAS', 40);
-        
-        // Projeções
-        if (metrics.totalRevenue > 0) {
-            const daysInPeriod = Math.ceil((period.endDate - period.startDate) / (1000 * 60 * 60 * 24)) + 1;
-            const dailyAvg = metrics.totalRevenue / daysInPeriod;
-            const monthlyProjection = dailyAvg * 30;
-            const annualProjection = monthlyProjection * 12;
-            
-            doc.setFontSize(10);
-            doc.setTextColor(0, 0, 0);
-            
-            const projections = [
-                `Média diária: R$ ${formatCurrency(dailyAvg)}`,
-                `Projeção mensal: R$ ${formatCurrency(monthlyProjection)}`,
-                `Projeção anual: R$ ${formatCurrency(annualProjection)}`,
-                `Lucro mensal projetado: R$ ${formatCurrency(monthlyProjection * (metrics.netMargin / 100))}`
-            ];
-            
-            projections.forEach(projection => {
-                doc.text(projection, 20, currentY);
-                currentY += 8;
-            });
-        }
-        
-        // Metas
-        currentY += 10;
-        doc.setFontSize(11);
-        doc.setTextColor(26, 26, 46);
-        doc.text('Metas para o Próximo Período:', 20, currentY);
-        currentY += 10;
-        
-        const goals = [
-            '1. Aumentar ticket médio em 10%',
-            '2. Reduzir taxa de desconto para abaixo de 8%',
-            '3. Manter margem líquida acima de 20%',
-            '4. Diversificar métodos de pagamento',
-            '5. Implementar controle de custos'
-        ];
-        
-        doc.setFontSize(10);
-        doc.setTextColor(0, 0, 0);
-        goals.forEach(goal => {
-            doc.text(goal, 25, currentY);
-            currentY += 8;
-        });
-        
-        // Plano de ação
-        currentY += 10;
-        doc.setFontSize(11);
-        doc.setTextColor(26, 26, 46);
-        doc.text('Plano de Ação Financeiro:', 20, currentY);
-        currentY += 10;
-        
-        const actionPlan = [
-            '30 DIAS: Controle de custos e despesas',
-            '60 DIAS: Otimização de receita',
-            '90 DIAS: Implementação de metas',
-            'CONTÍNUO: Monitoramento de indicadores'
-        ];
-        
-        doc.setFontSize(10);
-        doc.setTextColor(0, 0, 0);
-        actionPlan.forEach(action => {
-            doc.text(`• ${action}`, 25, currentY);
-            currentY += 8;
-        });
-        
-        // Salvar PDF
-        const fileName = `relatorio_financeiro_${new Date().toISOString().slice(0,10)}.pdf`;
-        doc.save(fileName);
-        
-        showAlert(`Relatório financeiro "${fileName}" gerado com sucesso! (${doc.internal.getNumberOfPages()} páginas)`, 'success');
-        
-    } catch (error) {
-        console.error('❌ Erro ao gerar relatório financeiro:', error);
-        showAlert('Erro ao gerar relatório: ' + error.message, 'error');
-    }
-}
-
-function calculateFinancialMetrics(sales) {
-    let totalRevenue = 0;
-    let totalCost = 0;
-    let totalProfit = 0;
-    let totalDiscount = 0;
-    let totalFees = 0;
-    
-    sales.forEach(sale => {
-        totalRevenue += sale.total;
-        totalDiscount += sale.discount || 0;
-        totalFees += sale.fees || 0;
-        
-        // Calcular custo e lucro
-        sale.items.forEach(item => {
-            const product = systemData.products.find(p => p.id === item.productId);
-            if (product) {
-                totalCost += (product.cmv || 0) * item.quantity;
-                totalProfit += (item.price - (product.cmv || 0)) * item.quantity;
-            }
-        });
-    });
-    
-    // Calcular métricas
-    const avgTicket = sales.length > 0 ? totalRevenue / sales.length : 0;
-    const avgProfitPerSale = sales.length > 0 ? totalProfit / sales.length : 0;
-    
-    const grossMargin = totalRevenue > 0 ? (totalProfit / totalRevenue * 100) : 0;
-    const netRevenue = totalRevenue - totalDiscount - totalFees;
-    const netMargin = netRevenue > 0 ? (totalProfit / netRevenue * 100) : 0;
-    
-    const discountRate = totalRevenue > 0 ? (totalDiscount / totalRevenue * 100) : 0;
-    const feeRate = totalRevenue > 0 ? (totalFees / totalRevenue * 100) : 0;
-    
-    return {
-        totalRevenue,
-        totalCost,
-        totalProfit,
-        totalDiscount,
-        totalFees,
-        salesCount: sales.length,
-        avgTicket,
-        avgProfitPerSale,
-        grossMargin,
-        netMargin,
-        discountRate,
-        feeRate,
-        netRevenue
-    };
-}
-
-// ============================================
-// RELATÓRIO DE ESTOQUE (OTIMIZADO)
-// ============================================
-
-async function generateInventoryReport(title, period, includeCharts, includeTables, format, orientation) {
-    try {
-        const { jsPDF } = window.jspdf;
-        if (!jsPDF) {
-            throw new Error('Biblioteca jsPDF não carregada');
-        }
-        
-        const pageSize = format === 'A3' ? 'a3' : format === 'letter' ? 'letter' : 'a4';
-        const isLandscape = orientation === 'landscape';
-        
-        const doc = new jsPDF({
-            orientation: isLandscape ? 'landscape' : 'portrait',
-            unit: 'mm',
-            format: pageSize
-        });
-        
-        // Calcular métricas de estoque
-        const metrics = calculateInventoryMetrics();
-        
-        // Página 1: Capa
-        addCoverPage(doc, title, 'Estoque', period);
-        
-        // Página 2: Sumário
-        doc.addPage();
-        addTableOfContents(doc, [
-            'Panorama do Estoque',
-            'Distribuição por Nível',
-            'Produtos Críticos',
-            'Análise de Valor',
-            'Giro de Estoque',
-            'Plano de Reposição'
-        ]);
-        
-        // Página 3: Panorama do Estoque
-        doc.addPage();
-        addHeader(doc, title, 3);
-        let currentY = addSectionTitle(doc, 'PANORAMA DO ESTOQUE', 40);
-        
-        // Métricas principais
-        const inventoryMetrics = [
-            { title: 'Total Produtos', value: metrics.totalProducts, unit: 'itens' },
-            { title: 'Itens Estoque', value: metrics.totalStock, unit: 'unid.' },
-            { title: 'Valor Total', value: metrics.totalValue, unit: 'R$' },
-            { title: 'Custo Total', value: metrics.totalCost, unit: 'R$' },
-            { title: 'Margem Média', value: metrics.averageMargin, unit: '%' },
-            { title: 'Giro Anual', value: metrics.turnoverRate.toFixed(2), unit: 'vezes' }
-        ];
-        
-        let metricY = currentY;
-        inventoryMetrics.forEach((metric, index) => {
-            const x = 20 + (index % 3) * 60;
-            if (index % 3 === 0 && index > 0) metricY += 35;
-            
-            addMetricCard(doc, metric.title, metric.value, metric.unit, x, metricY, 55, 25);
-        });
-        
-        // Status geral
-        metricY += 40;
-        const criticalCount = metrics.stockLevels.critical.length + metrics.stockLevels.low.length;
-        
-        doc.setFontSize(11);
-        if (criticalCount === 0) {
-            doc.setTextColor(76, 175, 80);
-            doc.text('✓ Estoque bem equilibrado', 20, metricY);
-        } else {
-            doc.setTextColor(244, 67, 54);
-            doc.text(`⚠️ ${criticalCount} produtos precisam de reposição`, 20, metricY);
-        }
-        
-        // Página 4: Distribuição por Nível
-        doc.addPage();
-        addHeader(doc, title, 4);
-        currentY = addSectionTitle(doc, 'DISTRIBUIÇÃO POR NÍVEL DE ESTOQUE', 40);
-        
-        // Tabela de níveis
-        const levelHeaders = ['Nível', 'Produtos', '% Total', 'Valor (R$)', 'Situação'];
-        const levels = [
-            { label: 'Crítico (<5)', data: metrics.stockLevels.critical, status: 'URGENTE' },
-            { label: 'Baixo (5-9)', data: metrics.stockLevels.low, status: 'ATENÇÃO' },
-            { label: 'Médio (10-19)', data: metrics.stockLevels.medium, status: 'NORMAL' },
-            { label: 'Alto (20-49)', data: metrics.stockLevels.high, status: 'OK' },
-            { label: 'Excesso (50+)', data: metrics.stockLevels.excess, status: 'EXCESSO' }
-        ];
-        
-        const levelData = levels.map(level => {
-            const value = level.data.reduce((sum, p) => sum + (p.sellingPrice * p.stock), 0);
-            const percentage = (level.data.length / metrics.totalProducts * 100).toFixed(1);
-            return [
-                level.label,
-                level.data.length.toString(),
-                `${percentage}%`,
-                formatCurrency(value),
-                level.status
-            ];
-        });
-        
-        const levelColWidths = [30, 20, 20, 35, 25];
-        const levelResult = createTable(doc, levelHeaders, levelData, 20, currentY, levelColWidths, doc.internal.pageSize.width);
-        currentY = levelResult.y;
-        
-        // Análise
-        currentY += 10;
-        doc.setFontSize(10);
-        doc.setTextColor(0, 0, 0);
-        
-        const criticalValue = levels[0].data.reduce((sum, p) => sum + (p.sellingPrice * p.stock), 0) +
-                             levels[1].data.reduce((sum, p) => sum + (p.sellingPrice * p.stock), 0);
-        
-        doc.text(`Valor em produtos críticos/baixos: R$ ${formatCurrency(criticalValue)}`, 20, currentY);
-        currentY += 8;
-        doc.text(`Representa ${((criticalValue / metrics.totalValue) * 100).toFixed(1)}% do valor total do estoque`, 20, currentY);
-        
-        // Página 5: Produtos Críticos
-        doc.addPage();
-        addHeader(doc, title, 5);
-        currentY = addSectionTitle(doc, 'PRODUTOS EM SITUAÇÃO CRÍTICA', 40);
-        
-        const criticalProducts = [...metrics.stockLevels.critical, ...metrics.stockLevels.low];
-        
-        if (criticalProducts.length === 0) {
-            doc.setFontSize(11);
-            doc.setTextColor(76, 175, 80);
-            doc.text('✓ Nenhum produto em situação crítica', 20, currentY);
-        } else {
-            // Tabela de produtos críticos
-            const critHeaders = ['Produto', 'Código', 'Categoria', 'Estoque', 'Preço', 'Valor'];
-            const critData = criticalProducts
-                .sort((a, b) => a.stock - b.stock)
-                .map(product => [
-                    product.name,
-                    product.id,
-                    getCategoryName(product.category),
-                    product.stock.toString(),
-                    formatCurrency(product.sellingPrice),
-                    formatCurrency(product.sellingPrice * product.stock)
-                ]);
-            
-            const critColWidths = [50, 30, 30, 20, 25, 30];
-            const critResult = createTable(doc, critHeaders, critData, 20, currentY, critColWidths, doc.internal.pageSize.width);
-            currentY = critResult.y;
-            
-            // Prioridades
-            currentY += 10;
-            doc.setFontSize(11);
-            doc.setTextColor(244, 67, 54);
-            doc.text('PRIORIDADES DE REPOSIÇÃO:', 20, currentY);
-            currentY += 10;
-            
-            const priorities = [
-                'URGENTE (estoque < 5): Repor imediatamente',
-                'ATENÇÃO (estoque 5-9): Repor esta semana',
-                'Programar pedidos com fornecedores'
-            ];
-            
-            doc.setFontSize(10);
-            doc.setTextColor(0, 0, 0);
-            priorities.forEach(priority => {
-                doc.text(`• ${priority}`, 25, currentY);
-                currentY += 8;
-            });
-        }
-        
-        // Página 6: Análise de Valor (Curva ABC)
-        doc.addPage();
-        addHeader(doc, title, 6);
-        currentY = addSectionTitle(doc, 'ANÁLISE DE VALOR (CURVA ABC)', 40);
-        
-        // Produtos ordenados por valor
-        const productsByValue = systemData.products
-            .map(p => ({
-                ...p,
-                totalValue: p.sellingPrice * p.stock
-            }))
-            .sort((a, b) => b.totalValue - a.totalValue);
-        
-        // Classificação ABC
-        let cumulativeValue = 0;
-        const totalValue = productsByValue.reduce((sum, p) => sum + p.totalValue, 0);
-        
-        const abc = { A: [], B: [], C: [] };
-        productsByValue.forEach(product => {
-            cumulativeValue += product.totalValue;
-            const percentage = (cumulativeValue / totalValue) * 100;
-            
-            if (percentage <= 80) {
-                abc.A.push(product);
-            } else if (percentage <= 95) {
-                abc.B.push(product);
-            } else {
-                abc.C.push(product);
-            }
-        });
-        
-        // Tabela ABC
-        const abcHeaders = ['Classe', 'Produtos', '% Itens', 'Valor (R$)', '% Valor', 'Gestão'];
-        const abcData = [
-            ['A', abc.A.length.toString(), ((abc.A.length / metrics.totalProducts) * 100).toFixed(1) + '%', 
-             formatCurrency(abc.A.reduce((sum, p) => sum + p.totalValue, 0)), '80%', 'Rigoroso'],
-            ['B', abc.B.length.toString(), ((abc.B.length / metrics.totalProducts) * 100).toFixed(1) + '%',
-             formatCurrency(abc.B.reduce((sum, p) => sum + p.totalValue, 0)), '15%', 'Moderado'],
-            ['C', abc.C.length.toString(), ((abc.C.length / metrics.totalProducts) * 100).toFixed(1) + '%',
-             formatCurrency(abc.C.reduce((sum, p) => sum + p.totalValue, 0)), '5%', 'Simplificado']
-        ];
-        
-        const abcColWidths = [20, 20, 20, 35, 20, 30];
-        const abcResult = createTable(doc, abcHeaders, abcData, 20, currentY, abcColWidths, doc.internal.pageSize.width);
-        currentY = abcResult.y;
-        
-        // Recomendações
-        currentY += 10;
-        doc.setFontSize(11);
-        doc.setTextColor(26, 26, 46);
-        doc.text('Recomendações por Classe:', 20, currentY);
-        currentY += 10;
-        
-        const recommendations = [
-            'CLASSE A: Controle rigoroso, estoque mínimo elevado',
-            'CLASSE B: Controle moderado, revisão periódica',
-            'CLASSE C: Controle simplificado, pedidos em lotes'
-        ];
-        
-        doc.setFontSize(10);
-        doc.setTextColor(0, 0, 0);
-        recommendations.forEach(rec => {
-            doc.text(`• ${rec}`, 25, currentY);
-            currentY += 8;
-        });
-        
-        // Página 7: Giro de Estoque
-        doc.addPage();
-        addHeader(doc, title, 7);
-        currentY = addSectionTitle(doc, 'GIRO DE ESTOQUE', 40);
-        
-        // Indicadores de giro
-        doc.setFontSize(10);
-        doc.setTextColor(0, 0, 0);
-        
-        const turnoverIndicators = [
-            { label: 'Giro Anual', value: metrics.turnoverRate.toFixed(2), unit: 'vezes/ano' },
-            { label: 'Dias de Estoque', value: metrics.daysOfInventory.toFixed(1), unit: 'dias' },
-            { label: 'Cobertura', value: metrics.stockCoverage.toFixed(1), unit: 'dias' },
-            { label: 'Estoque Médio', value: metrics.totalStock, unit: 'unid.' }
-        ];
-        
-        let turnoverY = currentY;
-        turnoverIndicators.forEach((indicator, index) => {
-            const x = 20 + (index % 2) * 100;
-            if (index % 2 === 0 && index > 0) turnoverY += 20;
-            
-            doc.text(indicator.label, x, turnoverY);
-            
-            // Avaliação
-            let evaluation = '';
-            if (indicator.label === 'Giro Anual') {
-                if (parseFloat(indicator.value) >= 6) evaluation = ' (Alto)';
-                else if (parseFloat(indicator.value) >= 4) evaluation = ' (Moderado)';
-                else evaluation = ' (Baixo)';
-            } else if (indicator.label === 'Dias de Estoque') {
-                if (parseFloat(indicator.value) <= 30) evaluation = ' (Bom)';
-                else if (parseFloat(indicator.value) <= 60) evaluation = ' (Aceitável)';
-                else evaluation = ' (Alto)';
-            }
-            
-            doc.text(`${indicator.value} ${indicator.unit}${evaluation}`, x, turnoverY + 8);
-            
-            if (index % 2 === 1) turnoverY += 20;
-        });
-        
-        // Interpretação
-        turnoverY += 10;
-        doc.setFontSize(11);
-        doc.setTextColor(26, 26, 46);
-        doc.text('Interpretação:', 20, turnoverY);
-        turnoverY += 10;
-        
-        let interpretation = '';
-        if (metrics.turnoverRate === 0) {
-            interpretation = 'Sem movimento de estoque registrado.';
-        } else if (metrics.turnoverRate < 4) {
-            interpretation = 'Giro baixo. Capital parado por muito tempo. Revisar mix e estratégias.';
-        } else if (metrics.turnoverRate < 6) {
-            interpretation = 'Giro moderado. Dentro da média. Há espaço para otimização.';
-        } else {
-            interpretation = 'Giro alto. Excelente gestão de capital de giro.';
-        }
-        
-        doc.setFontSize(10);
-        doc.setTextColor(0, 0, 0);
-        const splitInterpretation = doc.splitTextToSize(interpretation, 170);
-        doc.text(splitInterpretation, 25, turnoverY);
-        
-        // Página 8: Plano de Reposição
-        doc.addPage();
-        addHeader(doc, title, 8);
-        currentY = addSectionTitle(doc, 'PLANO DE REPOSIÇÃO', 40);
-        
-        // Necessidades por categoria
-        doc.setFontSize(10);
-        doc.setTextColor(0, 0, 0);
-        doc.text('Necessidades por Categoria:', 20, currentY);
-        currentY += 10;
-        
-        // Calcular necessidades
-        const categoryNeeds = {};
-        systemData.products.forEach(product => {
-            if (product.stock < 10) {
-                const category = product.category || 'Outros';
-                if (!categoryNeeds[category]) {
-                    categoryNeeds[category] = {
-                        products: 0,
-                        needed: 0,
-                        investment: 0
-                    };
-                }
-                categoryNeeds[category].products++;
-                const neededUnits = 10 - product.stock;
-                categoryNeeds[category].needed += neededUnits;
-                categoryNeeds[category].investment += (product.cmv || 0) * neededUnits;
-            }
-        });
-        
-        // Tabela de necessidades
-        const needsHeaders = ['Categoria', 'Produtos', 'Unid. Necess.', 'Investimento (R$)'];
-        const needsData = Object.entries(categoryNeeds)
-            .sort(([, a], [, b]) => b.investment - a.investment)
-            .map(([category, data]) => [
-                getCategoryName(category),
-                data.products.toString(),
-                data.needed.toString(),
-                formatCurrency(data.investment)
-            ]);
-        
-        if (needsData.length > 0) {
-            const needsColWidths = [40, 20, 25, 35];
-            const needsResult = createTable(doc, needsHeaders, needsData, 20, currentY, needsColWidths, doc.internal.pageSize.width);
-            currentY = needsResult.y;
-            
-            // Total
-            currentY += 10;
-            const totalInvestment = Object.values(categoryNeeds).reduce((sum, data) => sum + data.investment, 0);
-            doc.setFontSize(11);
-            doc.setTextColor(26, 26, 46);
-            doc.text(`Investimento total necessário: R$ ${formatCurrency(totalInvestment)}`, 20, currentY);
-        } else {
-            doc.text('Nenhuma necessidade de reposição identificada.', 20, currentY);
-        }
-        
-        // Cronograma
-        currentY += 20;
-        doc.setFontSize(11);
-        doc.setTextColor(26, 26, 46);
-        doc.text('Cronograma Sugerido:', 20, currentY);
-        currentY += 10;
-        
-        const schedule = [
-            'SEMANA 1: Produtos com estoque crítico (<5 unidades)',
-            'SEMANA 2: Produtos com estoque baixo (5-9 unidades)',
-            'SEMANA 3-4: Revisão e ajuste de estoque de segurança',
-            'CONTÍNUO: Monitoramento e pedidos programados'
-        ];
-        
-        doc.setFontSize(10);
-        doc.setTextColor(0, 0, 0);
-        schedule.forEach(item => {
-            doc.text(`• ${item}`, 25, currentY);
-            currentY += 8;
-        });
-        
-        // Ações recomendadas
-        currentY += 10;
-        doc.setFontSize(11);
-        doc.setTextColor(26, 26, 46);
-        doc.text('Ações Recomendadas:', 20, currentY);
-        currentY += 10;
-        
-        const actions = [
-            '1. Implementar estoque mínimo por produto',
-            '2. Definir ponto de pedido e lote econômico',
-            '3. Estabelecer parcerias com fornecedores',
-            '4. Monitorar giro por categoria',
-            '5. Revisar periodicamente a classificação ABC'
-        ];
-        
-        doc.setFontSize(10);
-        doc.setTextColor(0, 0, 0);
-        actions.forEach(action => {
-            doc.text(action, 25, currentY);
-            currentY += 8;
-        });
-        
-        // Salvar PDF
-        const fileName = `relatorio_estoque_${new Date().toISOString().slice(0,10)}.pdf`;
-        doc.save(fileName);
-        
-        showAlert(`Relatório de estoque "${fileName}" gerado com sucesso! (${doc.internal.getNumberOfPages()} páginas)`, 'success');
-        
-    } catch (error) {
-        console.error('❌ Erro ao gerar relatório de estoque:', error);
-        showAlert('Erro ao gerar relatório: ' + error.message, 'error');
-    }
-}
-
-function calculateInventoryMetrics() {
-    const inventoryData = calculateInventoryValue();
-    
-    // Produtos por nível de estoque
-    const stockLevels = {
-        critical: systemData.products.filter(p => p.stock < 5),
-        low: systemData.products.filter(p => p.stock >= 5 && p.stock < 10),
-        medium: systemData.products.filter(p => p.stock >= 10 && p.stock < 20),
-        high: systemData.products.filter(p => p.stock >= 20 && p.stock < 50),
-        excess: systemData.products.filter(p => p.stock >= 50)
-    };
-    
-    // Giro de estoque estimado (últimos 30 dias)
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    
-    const totalSalesLast30Days = systemData.sales
-        .filter(s => new Date(s.date) >= thirtyDaysAgo)
-        .reduce((sum, sale) => sum + sale.items.reduce((s, item) => s + item.quantity, 0), 0);
-    
-    const avgInventory = inventoryData.totalItems;
-    const turnoverRate = avgInventory > 0 ? (totalSalesLast30Days / avgInventory) * 12 : 0;
-    const daysOfInventory = avgInventory > 0 ? 30 / (totalSalesLast30Days / avgInventory) : 0;
-    const stockCoverage = avgInventory > 0 ? avgInventory / (totalSalesLast30Days / 30) : 0;
-    
-    return {
-        ...inventoryData,
-        stockLevels,
-        totalProducts: systemData.products.length,
-        turnoverRate,
-        daysOfInventory,
-        stockCoverage
-    };
-}
-
-// ============================================
-// FUNÇÕES AUXILIARES
-// ============================================
-
 function calculateSalesMetrics(sales) {
     const totalRevenue = sales.reduce((sum, sale) => sum + sale.total, 0);
-    const totalItems = sales.reduce((sum, sale) => sum + sale.items.reduce((s, item) => s + item.quantity, 0), 0);
     const averageTicket = sales.length > 0 ? totalRevenue / sales.length : 0;
-    const maxSale = sales.length > 0 ? Math.max(...sales.map(s => s.total)) : 0;
-    
-    // Vendas por dia da semana
-    const salesByWeekday = { 'Dom': 0, 'Seg': 0, 'Ter': 0, 'Qua': 0, 'Qui': 0, 'Sex': 0, 'Sáb': 0 };
-    const weekdayNames = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-    
-    sales.forEach(sale => {
-        const date = new Date(sale.date);
-        const weekday = weekdayNames[date.getDay()];
-        salesByWeekday[weekday] += sale.total;
-    });
     
     return {
         totalSales: sales.length,
         totalRevenue,
-        totalItems,
-        averageTicket,
-        maxSale,
-        salesByWeekday
+        averageTicket
     };
-}
-
-function getPaymentMethodName(method) {
-    const names = {
-        'cash': 'Dinheiro',
-        'pix': 'PIX',
-        'debit': 'Cartão Débito',
-        'credit': 'Cartão Crédito',
-        'Não informado': 'Não informado'
-    };
-    return names[method] || method;
 }
 
 // ============================================
@@ -4054,11 +1719,9 @@ function updateSaleProductsList() {
     });
     
     // Adicionar event listeners usando event delegation
-    // Primeiro, remove event listeners antigos
     const newContainer = container.cloneNode(true);
     container.parentNode.replaceChild(newContainer, container);
     
-    // Adiciona um único event listener no container
     document.getElementById('sale-products-list').addEventListener('click', function(e) {
         const target = e.target;
         const button = target.closest('button');
@@ -4077,21 +1740,18 @@ function updateSaleProductsList() {
         let currentQty = parseInt(qtySpan.textContent) || 0;
         const product = systemData.products.find(p => p.id === productId);
         
-        // Botão "+"
         if (button.classList.contains('plus') && product) {
             if (currentQty < product.stock) {
                 currentQty++;
                 qtySpan.textContent = currentQty;
             }
         }
-        // Botão "-"
         else if (button.classList.contains('minus')) {
             if (currentQty > 0) {
                 currentQty--;
                 qtySpan.textContent = currentQty;
             }
         }
-        // Botão "Adicionar"
         else if (button.classList.contains('add-to-cart')) {
             if (currentQty > 0) {
                 addToCart(productId, currentQty);
@@ -4193,7 +1853,6 @@ function updateCartDisplay() {
     
     cartContainer.innerHTML = DOMPurify.sanitize(cartHTML);
     
-    // Adicionar event listeners
     setTimeout(() => {
         document.querySelectorAll('.plus-cart').forEach(button => {
             button.addEventListener('click', function() {
@@ -4304,48 +1963,37 @@ function updateSaleSummary() {
 
 function updateProductCalculations() {
     const purchaseCost = sanitizeNumber(parseFloat(document.getElementById('purchase-cost')?.value) || 0);
-    const shippingCost = sanitizeNumber(parseFloat(document.getElementById('shipping-cost')?.value) || 0);
-    const operationalExpenses = sanitizeNumber(parseFloat(document.getElementById('operational-expenses')?.value) || 0);
-    const expectedSales = sanitizeNumber(parseFloat(document.getElementById('expected-sales')?.value) || 1);
-    const variableFees = sanitizeNumber(parseFloat(document.getElementById('variable-fees')?.value) || 1.0);
-    const taxes = sanitizeNumber(parseFloat(document.getElementById('taxes')?.value) || 0);
     const profitMargin = sanitizeNumber(parseFloat(document.getElementById('profit-margin')?.value) || 0);
     
-    if (purchaseCost < 0 || shippingCost < 0 || operationalExpenses < 0 || expectedSales <= 0) {
-        showAlert('Valores não podem ser negativos e vendas esperadas devem ser maiores que zero', 'error');
+    if (purchaseCost < 0) {
+        showAlert('Valores não podem ser negativos', 'error');
         return;
     }
     
-    const totalPurchaseCost = purchaseCost + shippingCost;
-    const proportionalOperationalCost = operationalExpenses / expectedSales;
-    const cmv = totalPurchaseCost + proportionalOperationalCost;
+    // CMV = Custo de Compra (simplificado)
+    const cmv = purchaseCost;
     
-    const variableCosts = (variableFees + taxes + profitMargin) / 100;
-    if (variableCosts >= 1) {
-        showAlert('A soma das taxas variáveis não pode ser 100% ou mais', 'error');
-        return;
+    // Fórmula simplificada: Preço = Custo / (1 - Margem/100)
+    let suggestedPrice = 0;
+    if (profitMargin >= 100) {
+        showAlert('Margem de lucro não pode ser 100% ou mais', 'error');
+        suggestedPrice = purchaseCost * 2;
+    } else {
+        suggestedPrice = purchaseCost / (1 - (profitMargin / 100));
     }
-    const markup = 1 / (1 - variableCosts);
-    
-    const suggestedPrice = cmv * markup;
     
     // Atualizar campos de cálculo
     const calcFields = {
         'calc-purchase-cost': purchaseCost,
-        'calc-shipping-cost': shippingCost,
-        'calc-operational-cost': proportionalOperationalCost,
         'calc-cmv': cmv,
-        'calc-variable-fees': variableFees,
-        'calc-taxes': taxes,
         'calc-profit-margin': profitMargin,
-        'calc-markup': markup,
         'calc-suggested-price': suggestedPrice
     };
     
     Object.entries(calcFields).forEach(([id, value]) => {
         const element = document.getElementById(id);
         if (element) {
-            if (id.includes('currency') || id.includes('calc-') && (id.includes('cost') || id.includes('price') || id.includes('cmv'))) {
+            if (id.includes('currency') || (id.includes('calc-') && (id.includes('cost') || id.includes('price') || id.includes('cmv')))) {
                 element.textContent = formatCurrency(value);
             } else {
                 element.textContent = typeof value === 'number' ? value.toFixed(2) : value;
@@ -4373,9 +2021,9 @@ async function saveProduct(e) {
     const name = DOMPurify.sanitize(document.getElementById('product-name')?.value.trim() || '');
     const category = DOMPurify.sanitize(document.getElementById('product-category')?.value || '');
     const purchaseCost = sanitizeNumber(parseFloat(document.getElementById('purchase-cost')?.value || 0));
-    const shippingCost = sanitizeNumber(parseFloat(document.getElementById('shipping-cost')?.value || 0));
     const sellingPrice = sanitizeNumber(parseFloat(document.getElementById('selling-price')?.value || 0));
     const stock = sanitizeNumber(parseInt(document.getElementById('initial-stock')?.value || 0));
+    const profitMargin = sanitizeNumber(parseFloat(document.getElementById('profit-margin')?.value || 40));
     
     // Validações
     if (!name || name.length > 200) {
@@ -4393,11 +2041,6 @@ async function saveProduct(e) {
         return;
     }
     
-    if (isNaN(shippingCost) || shippingCost < 0) {
-        showAlert('Custo de frete deve ser um número positivo', 'error');
-        return;
-    }
-    
     if (isNaN(sellingPrice) || sellingPrice <= 0) {
         showAlert('Preço de venda deve ser um número positivo maior que zero', 'error');
         return;
@@ -4408,29 +2051,14 @@ async function saveProduct(e) {
         return;
     }
     
-    const operationalExpenses = sanitizeNumber(parseFloat(document.getElementById('operational-expenses')?.value || 0));
-    const expectedSales = sanitizeNumber(parseInt(document.getElementById('expected-sales')?.value || 0));
-    const variableFees = sanitizeNumber(parseFloat(document.getElementById('variable-fees')?.value || 0));
-    const taxes = sanitizeNumber(parseFloat(document.getElementById('taxes')?.value || 0));
-    const profitMargin = sanitizeNumber(parseFloat(document.getElementById('profit-margin')?.value || 50));
-    
-    if (expectedSales <= 0) {
-        showAlert('Vendas esperadas devem ser maiores que zero', 'error');
+    if (profitMargin < 0 || profitMargin >= 100) {
+        showAlert('Margem de lucro deve estar entre 0 e 99.9%', 'error');
         return;
     }
     
-    const totalPurchaseCost = purchaseCost + shippingCost;
-    const proportionalOperationalCost = operationalExpenses / expectedSales;
-    const cmv = totalPurchaseCost + proportionalOperationalCost;
-    const variableCosts = (variableFees + taxes + profitMargin) / 100;
-    
-    if (variableCosts >= 1) {
-        showAlert('A soma das taxas variáveis não pode ser 100% ou mais', 'error');
-        return;
-    }
-    
-    const markup = 1 / (1 - variableCosts);
-    const suggestedPrice = cmv * markup;
+    // Calcular CMV e preço sugerido
+    const cmv = purchaseCost;
+    const suggestedPrice = purchaseCost / (1 - (profitMargin / 100));
     
     const isEdit = document.getElementById('is-edit')?.value === 'true';
     const productId = DOMPurify.sanitize(document.getElementById('product-id')?.value || '');
@@ -4444,14 +2072,8 @@ async function saveProduct(e) {
             product.name = name;
             product.category = category;
             product.purchaseCost = purchaseCost;
-            product.shippingCost = shippingCost;
-            product.operationalCost = proportionalOperationalCost;
-            product.expectedSales = expectedSales;
-            product.variableFees = variableFees;
-            product.taxes = taxes;
             product.profitMargin = profitMargin;
             product.cmv = parseFloat(cmv.toFixed(2));
-            product.markup = parseFloat(markup.toFixed(2));
             product.suggestedPrice = parseFloat(suggestedPrice.toFixed(2));
             product.sellingPrice = sellingPrice;
             product.stock = stock;
@@ -4465,14 +2087,8 @@ async function saveProduct(e) {
             name: name,
             category: category,
             purchaseCost: purchaseCost,
-            shippingCost: shippingCost,
-            operationalCost: proportionalOperationalCost,
-            expectedSales: expectedSales,
-            variableFees: variableFees,
-            taxes: taxes,
             profitMargin: profitMargin,
             cmv: parseFloat(cmv.toFixed(2)),
-            markup: parseFloat(markup.toFixed(2)),
             suggestedPrice: parseFloat(suggestedPrice.toFixed(2)),
             sellingPrice: sellingPrice,
             stock: stock,
@@ -4508,11 +2124,7 @@ function resetProductForm() {
     
     // Valores padrão
     const defaultFields = {
-        'operational-expenses': systemData.settings.monthlyOperationalExpenses,
-        'variable-fees': 0,
-        'taxes': systemData.settings.defaultTax,
-        'profit-margin': systemData.settings.defaultMargin,
-        'expected-sales': 0,
+        'profit-margin': 40,
         'initial-stock': 1
     };
     
@@ -4542,10 +2154,6 @@ function loadProductForEdit(productId) {
         'product-name': product.name,
         'product-category': product.category,
         'purchase-cost': product.purchaseCost,
-        'shipping-cost': product.shippingCost,
-        'expected-sales': product.expectedSales,
-        'variable-fees': product.variableFees,
-        'taxes': product.taxes,
         'profit-margin': product.profitMargin,
         'selling-price': product.sellingPrice,
         'initial-stock': product.stock
@@ -4598,17 +2206,6 @@ function updateProductsList() {
         cmvCell.className = 'currency';
         cmvCell.textContent = formatCurrency(product.cmv);
         row.appendChild(cmvCell);
-        
-        // Célula Markup
-        const markupCell = document.createElement('td');
-        markupCell.textContent = product.markup.toFixed(2);
-        row.appendChild(markupCell);
-        
-        // Célula Preço Sugerido
-        const suggestedPriceCell = document.createElement('td');
-        suggestedPriceCell.className = 'currency';
-        suggestedPriceCell.textContent = formatCurrency(product.suggestedPrice);
-        row.appendChild(suggestedPriceCell);
         
         // Célula Preço de Venda
         const sellingPriceCell = document.createElement('td');
@@ -4762,7 +2359,7 @@ function filterProducts() {
         const productName = row.cells[1]?.textContent.toLowerCase() || '';
         const productCode = row.cells[0]?.textContent.toLowerCase() || '';
         const productCategory = row.cells[2]?.textContent || '';
-        const inventoryValueText = row.cells[9]?.textContent || '0,00'; // Índice 9 = Valor do Estoque
+        const inventoryValueText = row.cells[7]?.textContent || '0,00';
         
         const matchesSearch = productName.includes(searchTerm) || productCode.includes(searchTerm);
         const matchesCategory = !categoryValue || productCategory === getCategoryName(categoryValue);
@@ -4772,7 +2369,6 @@ function filterProducts() {
         
         if (isVisible) {
             visibleItems++;
-            // Converter o valor formatado de volta para número
             const value = parseFloat(inventoryValueText.replace('R$ ', '').replace('.', '').replace(',', '.'));
             if (!isNaN(value)) {
                 visibleInventoryValue += value;
@@ -4780,7 +2376,6 @@ function filterProducts() {
         }
     });
     
-    // Atualizar o resumo com base nos produtos visíveis
     updateFilteredInventorySummary(visibleItems, visibleInventoryValue);
 }
 
@@ -4788,11 +2383,9 @@ function updateFilteredInventorySummary(visibleItems, visibleInventoryValue) {
     const inventorySummary = document.getElementById('inventory-summary');
     if (!inventorySummary) return;
     
-    // Obter os cards existentes
     const cards = inventorySummary.querySelectorAll('.card');
     if (cards.length < 1) return;
     
-    // Atualizar apenas o primeiro card (Valor Total do Estoque)
     const totalCard = cards[0];
     const totalValueElement = totalCard.querySelector('.card-value');
     const totalSubtitleElement = totalCard.querySelector('.card-subtitle');
@@ -4873,7 +2466,7 @@ async function deleteProduct(productId) {
 }
 
 // ============================================
-// 13. LISTA DE VENDAS (ATUALIZADA COM EDIÇÃO)
+// 13. LISTA DE VENDAS
 // ============================================
 
 function updateSalesList() {
@@ -4916,12 +2509,10 @@ function updateSalesList() {
         
         const row = document.createElement('tr');
         
-        // Célula ID
         const idCell = document.createElement('td');
         idCell.textContent = sale.id;
         row.appendChild(idCell);
         
-        // Célula Data
         const dateCell = document.createElement('td');
         const dateText = document.createTextNode(saleDate.toLocaleDateString('pt-BR'));
         const brElement = document.createElement('br');
@@ -4931,37 +2522,30 @@ function updateSalesList() {
         dateCell.appendChild(timeText);
         row.appendChild(dateCell);
         
-        // Célula Itens
         const itemsCell = document.createElement('td');
         itemsCell.textContent = itemsText;
         row.appendChild(itemsCell);
         
-        // Célula Quantidade Total
         const qtyCell = document.createElement('td');
         qtyCell.textContent = totalItems;
         row.appendChild(qtyCell);
         
-        // Célula Total
         const totalCell = document.createElement('td');
         totalCell.className = 'currency';
         totalCell.textContent = formatCurrency(sale.total);
         row.appendChild(totalCell);
         
-        // Célula Atendente
         const attendantCell = document.createElement('td');
         attendantCell.textContent = sanitizedAttendant;
         row.appendChild(attendantCell);
         
-        // Célula Pagamento
         const paymentCell = document.createElement('td');
         paymentCell.textContent = paymentText;
         row.appendChild(paymentCell);
         
-        // Célula Ações
         const actionsCell = document.createElement('td');
         actionsCell.className = 'actions-cell';
         
-        // Botão Visualizar
         const viewBtn = document.createElement('button');
         viewBtn.className = 'btn btn-small btn-info view-sale';
         viewBtn.setAttribute('data-id', sale.id);
@@ -4971,7 +2555,6 @@ function updateSalesList() {
         viewBtn.appendChild(viewIcon);
         actionsCell.appendChild(viewBtn);
         
-        // Botão Editar (NOVO)
         const editBtn = document.createElement('button');
         editBtn.className = 'btn btn-small btn-warning edit-sale-btn';
         editBtn.setAttribute('data-id', sale.id);
@@ -4985,7 +2568,6 @@ function updateSalesList() {
         salesBody.appendChild(row);
     });
     
-    // Adicionar event listeners
     setTimeout(() => {
         document.querySelectorAll('.view-sale').forEach(button => {
             button.addEventListener('click', function() {
@@ -4994,7 +2576,6 @@ function updateSalesList() {
             });
         });
         
-        // Adicionar event listener para o botão de editar (NOVO)
         document.querySelectorAll('.edit-sale-btn').forEach(button => {
             button.addEventListener('click', function() {
                 const saleId = DOMPurify.sanitize(this.getAttribute('data-id'));
@@ -5124,7 +2705,6 @@ function updateDashboard() {
     
     if (totalProducts) totalProducts.textContent = systemData.products.length;
     
-    // Vendas de hoje
     const today = new Date().toISOString().split('T')[0];
     const todaySalesCount = systemData.sales.filter(sale => 
         sale.date.startsWith(today)
@@ -5132,7 +2712,6 @@ function updateDashboard() {
     
     if (todaySales) todaySales.textContent = todaySalesCount;
     
-    // Receita mensal
     const currentMonth = new Date().getMonth();
     const currentYear = new Date().getFullYear();
     
@@ -5145,7 +2724,6 @@ function updateDashboard() {
     
     if (monthlyRevenue) monthlyRevenue.textContent = formatCurrency(monthlyRevenueTotal);
     
-    // Produto mais vendido
     const productSales = {};
     systemData.sales.forEach(sale => {
         sale.items.forEach(item => {
@@ -5220,33 +2798,27 @@ function updateRecentSales() {
         
         const row = document.createElement('tr');
         
-        // Célula ID
         const idCell = document.createElement('td');
         idCell.textContent = sale.id;
         row.appendChild(idCell);
         
-        // Célula Data/Hora
         const dateCell = document.createElement('td');
         dateCell.textContent = `${saleDate.toLocaleDateString('pt-BR')} ${saleDate.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}`;
         row.appendChild(dateCell);
         
-        // Célula Itens
         const itemsCell = document.createElement('td');
         itemsCell.textContent = itemsText;
         row.appendChild(itemsCell);
         
-        // Célula Total
         const totalCell = document.createElement('td');
         totalCell.className = 'currency';
         totalCell.textContent = formatCurrency(sale.total);
         row.appendChild(totalCell);
         
-        // Célula Atendente
         const attendantCell = document.createElement('td');
         attendantCell.textContent = sanitizedAttendant;
         row.appendChild(attendantCell);
         
-        // Célula Pagamento
         const paymentCell = document.createElement('td');
         paymentCell.textContent = paymentText;
         row.appendChild(paymentCell);
@@ -5379,12 +2951,10 @@ function updateMonthlySalesChart() {
     const ctx = document.getElementById('monthlySalesChart');
     if (!ctx) return;
     
-    // Destruir gráfico anterior se existir
     if (appState.charts.monthlySales) {
         appState.charts.monthlySales.destroy();
     }
     
-    // Agrupar vendas por mês
     const monthlySales = {};
     const monthlyRevenue = {};
     
@@ -5401,17 +2971,14 @@ function updateMonthlySalesChart() {
         monthlyRevenue[monthYear] += sale.total;
     });
     
-    // Ordenar por data
     const sortedMonths = Object.keys(monthlySales).sort((a, b) => {
         const [monthA, yearA] = a.split('/').map(Number);
         const [monthB, yearB] = b.split('/').map(Number);
         return yearA === yearB ? monthA - monthB : yearA - yearB;
     });
     
-    // Limitar aos últimos 6 meses
     const displayMonths = sortedMonths.slice(-6);
     
-    // Preparar dados para o gráfico
     const labels = displayMonths.map(month => {
         const [monthNum, year] = month.split('/');
         const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 
@@ -5422,7 +2989,6 @@ function updateMonthlySalesChart() {
     const salesData = displayMonths.map(month => monthlySales[month] || 0);
     const revenueData = displayMonths.map(month => monthlyRevenue[month] || 0);
     
-    // Criar gráfico
     try {
         appState.charts.monthlySales = new Chart(ctx, {
             type: 'bar',
@@ -5505,12 +3071,10 @@ function updateCategoryChart() {
     const ctx = document.getElementById('categoryChart');
     if (!ctx) return;
     
-    // Destruir gráfico anterior se existir
     if (appState.charts.categoryChart) {
         appState.charts.categoryChart.destroy();
     }
     
-    // Calcular vendas por categoria
     const categoryRevenue = {};
     
     systemData.sales.forEach(sale => {
@@ -5529,7 +3093,6 @@ function updateCategoryChart() {
     const categories = Object.keys(categoryRevenue);
     const revenueData = categories.map(cat => categoryRevenue[cat]);
     
-    // Mapear categorias para nomes em português
     const categoryNames = {
         'Skincare': 'Skincare',
         'Makeup': 'Maquiagem',
@@ -5538,7 +3101,6 @@ function updateCategoryChart() {
     
     const labels = categories.map(cat => categoryNames[cat] || cat);
     
-    // Cores para as categorias
     const backgroundColors = [
         'rgba(138, 43, 226, 0.7)',
         'rgba(255, 107, 107, 0.7)',
@@ -5576,39 +3138,7 @@ function updateCategoryChart() {
 }
 
 // ============================================
-// 16. CONFIGURAÇÕES
-// ============================================
-
-async function saveSettings(e) {
-    if (e) e.preventDefault();
-    
-    const debitFee = sanitizeNumber(parseFloat(document.getElementById('default-debit-fee')?.value || 0));
-    const creditFee = sanitizeNumber(parseFloat(document.getElementById('default-credit-fee')?.value || 0));
-    const tax = sanitizeNumber(parseFloat(document.getElementById('default-tax')?.value || 0));
-    const margin = sanitizeNumber(parseFloat(document.getElementById('default-margin')?.value || 0));
-    const expenses = sanitizeNumber(parseFloat(document.getElementById('monthly-expenses')?.value || 0));
-    
-    // Validações
-    if (debitFee < 0 || creditFee < 0 || tax < 0 || margin < 0 || expenses < 0) {
-        showAlert('Valores não podem ser negativos', 'error');
-        return;
-    }
-    
-    // Atualizar configurações
-    systemData.settings.defaultDebitFee = debitFee || 2.0;
-    systemData.settings.defaultCreditFee = creditFee || 4.5;
-    systemData.settings.defaultTax = tax || 6;
-    systemData.settings.defaultMargin = margin || 40;
-    systemData.settings.monthlyOperationalExpenses = expenses || 4000;
-    
-    // Salvar dados
-    await saveData();
-    
-    showAlert('Configurações salvas com sucesso', 'success');
-}
-
-// ============================================
-// 17. EXPORTAÇÃO E IMPORTAÇÃO DE DADOS
+// 16. EXPORTAÇÃO E IMPORTAÇÃO DE DADOS
 // ============================================
 
 function exportData(type = null) {
@@ -5669,7 +3199,6 @@ function importData() {
         return;
     }
     
-    // Validar tipo de arquivo
     if (!file.name.endsWith('.json') && file.type !== 'application/json') {
         const importError = document.getElementById('import-error');
         if (importError) {
@@ -5688,12 +3217,10 @@ function importData() {
         try {
             const importedData = JSON.parse(e.target.result);
             
-            // Validar estrutura
             if (!importedData.products || !Array.isArray(importedData.products)) {
                 throw new Error('Estrutura de dados inválida');
             }
             
-            // Sanitizar dados
             const sanitizedData = {
                 products: importedData.products.map(product => ({
                     ...product,
@@ -5711,7 +3238,6 @@ function importData() {
                 settings: importedData.settings || {}
             };
             
-            // Atualizar dados do sistema
             if (sanitizedData.sales && Array.isArray(sanitizedData.sales)) {
                 systemData.sales = sanitizedData.sales;
             }
@@ -5722,11 +3248,9 @@ function importData() {
             
             systemData.products = sanitizedData.products;
             
-            // Atualizar IDs
             updateProductIds();
             updateSaleIds();
             
-            // Salvar e recarregar
             saveData();
             loadData();
             updateDashboard();
@@ -5769,25 +3293,19 @@ async function clearAllData() {
     const confirmation = confirm('ATENÇÃO: Esta ação irá apagar TODOS os dados do sistema. Esta ação não pode ser desfeita. Deseja continuar?');
     if (confirmation) {
         try {
-            // Limpar dados
             systemData = {
                 products: [],
                 sales: [],
                 settings: {
                     defaultDebitFee: 2.0,
                     defaultCreditFee: 4.5,
-                    defaultTax: 6,
-                    defaultMargin: 40,
-                    monthlyOperationalExpenses: 4000,
                     lastProductId: 0,
                     lastSaleId: 0
                 }
             };
             
-            // Salvar dados vazios
             await saveData();
             
-            // Recarregar interface
             loadData();
             updateDashboard();
             updateInventorySummary();
@@ -5802,7 +3320,7 @@ async function clearAllData() {
 }
 
 // ============================================
-// 18. FUNÇÕES AUXILIARES DO SISTEMA DE VENDAS
+// 17. SISTEMA DE VENDAS PIX
 // ============================================
 
 function showPixPayment(sale) {
@@ -5836,7 +3354,6 @@ function showPixPayment(sale) {
     
     modalContent.innerHTML = DOMPurify.sanitize(pixHTML);
     
-    // Gerar QR Code
     setTimeout(() => {
         if (typeof QRCode !== 'undefined') {
             new QRCode(document.getElementById("pix-qr-code"), {
@@ -5849,7 +3366,6 @@ function showPixPayment(sale) {
         }
     }, 100);
     
-    // Adicionar evento para copiar código
     setTimeout(() => {
         const copyButton = document.getElementById('copy-pix-code');
         if (copyButton) {
@@ -5872,7 +3388,6 @@ function generatePixCode(amount) {
         amount = 0.01;
     }
     
-
     const transactionId = Math.random().toString(36).substring(2, 15).toUpperCase();
     const merchantName = "CAMARIM BOUTIQUE";
     const merchantCity = "SAO PAULO";
@@ -5888,7 +3403,7 @@ function confirmPixPayment() {
 }
 
 // ============================================
-// 19. BANCO DE DADOS
+// 18. BANCO DE DADOS
 // ============================================
 
 function showDatabaseStatus() {
@@ -5909,11 +3424,8 @@ async function updateDatabaseInfo() {
         
         const info = await databaseManager.getDatabaseInfo();
         
-        // Atualizar cards
         const dbStatus = document.getElementById('db-status');
         const dbType = document.getElementById('db-type');
-        const dbProducts = document.getElementById('db-products');
-        const dbSales = document.getElementById('db-sales');
         const dbStorage = document.getElementById('db-storage');
         const dbUsage = document.getElementById('db-usage');
         
@@ -5924,12 +3436,9 @@ async function updateDatabaseInfo() {
                 '<span class="positive"><i class="fas fa-check"></i> Otimizado</span>' :
                 '<span class="warning"><i class="fas fa-exclamation-triangle"></i> Fallback</span>';
         }
-        if (dbProducts) dbProducts.textContent = systemData.products.length;
-        if (dbSales) dbSales.textContent = systemData.sales.length;
         if (dbStorage) dbStorage.textContent = info?.storage || 'N/A';
         if (dbUsage) dbUsage.textContent = info?.status === 'IndexedDB' ? 'Ativo' : 'Fallback';
         
-        // Atualizar informações detalhadas
         const infoContainer = document.getElementById('db-info-container');
         if (infoContainer) {
             let infoHTML = '';
@@ -5995,7 +3504,7 @@ async function updateDatabaseInfo() {
 }
 
 // ============================================
-// 20. UTILITÁRIOS
+// 19. UTILITÁRIOS
 // ============================================
 
 function showModal(modalId) {
@@ -6086,16 +3595,6 @@ function getCategoryName(categoryCode) {
     
     const sanitizedCode = DOMPurify.sanitize(categoryCode);
     return categories[sanitizedCode] || sanitizedCode;
-}
-
-function getReportTypeName(type) {
-    const names = {
-        'sales': 'de Vendas',
-        'products': 'de Produtos',
-        'financial': 'Financeiro',
-        'inventory': 'de Estoque'
-    };
-    return names[type] || type;
 }
 
 function sanitizeNumber(value) {
