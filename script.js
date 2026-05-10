@@ -868,7 +868,7 @@ function resetProductForm() {
     
     // Valores padrão
     const defaultFields = {
-        'profit-margin': 40,
+        'profit-margin': 50,
         'initial-stock': 1,
         'cmv-cost': 0
     };
