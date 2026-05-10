@@ -4307,7 +4307,7 @@ function updateProductCalculations() {
     const shippingCost = sanitizeNumber(parseFloat(document.getElementById('shipping-cost')?.value) || 0);
     const operationalExpenses = sanitizeNumber(parseFloat(document.getElementById('operational-expenses')?.value) || 0);
     const expectedSales = sanitizeNumber(parseFloat(document.getElementById('expected-sales')?.value) || 1);
-    const variableFees = sanitizeNumber(parseFloat(document.getElementById('variable-fees')?.value) || 0);
+    const variableFees = sanitizeNumber(parseFloat(document.getElementById('variable-fees')?.value) || 1.0);
     const taxes = sanitizeNumber(parseFloat(document.getElementById('taxes')?.value) || 0);
     const profitMargin = sanitizeNumber(parseFloat(document.getElementById('profit-margin')?.value) || 0);
     
@@ -4509,11 +4509,11 @@ function resetProductForm() {
     // Valores padrão
     const defaultFields = {
         'operational-expenses': systemData.settings.monthlyOperationalExpenses,
-        'variable-fees': 9.5,
+        'variable-fees': 0,
         'taxes': systemData.settings.defaultTax,
         'profit-margin': systemData.settings.defaultMargin,
-        'expected-sales': 100,
-        'initial-stock': 10
+        'expected-sales': 0,
+        'initial-stock': 1
     };
     
     Object.entries(defaultFields).forEach(([id, value]) => {
