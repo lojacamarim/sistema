@@ -4408,11 +4408,11 @@ async function saveProduct(e) {
         return;
     }
     
-    const operationalExpenses = sanitizeNumber(parseFloat(document.getElementById('operational-expenses')?.value || 4000));
-    const expectedSales = sanitizeNumber(parseInt(document.getElementById('expected-sales')?.value || 100));
-    const variableFees = sanitizeNumber(parseFloat(document.getElementById('variable-fees')?.value || 9.5));
-    const taxes = sanitizeNumber(parseFloat(document.getElementById('taxes')?.value || 6));
-    const profitMargin = sanitizeNumber(parseFloat(document.getElementById('profit-margin')?.value || 40));
+    const operationalExpenses = sanitizeNumber(parseFloat(document.getElementById('operational-expenses')?.value || 0));
+    const expectedSales = sanitizeNumber(parseInt(document.getElementById('expected-sales')?.value || 0));
+    const variableFees = sanitizeNumber(parseFloat(document.getElementById('variable-fees')?.value || 0));
+    const taxes = sanitizeNumber(parseFloat(document.getElementById('taxes')?.value || 0));
+    const profitMargin = sanitizeNumber(parseFloat(document.getElementById('profit-margin')?.value || 50));
     
     if (expectedSales <= 0) {
         showAlert('Vendas esperadas devem ser maiores que zero', 'error');
