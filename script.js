@@ -387,7 +387,7 @@ function setupEventListeners() {
     }
     
     // Atualizar cálculos do produto em tempo real
-    const calcFields = ['purchase-cost', 'profit-margin'];
+    const calcFields = ['purchase-cost', 'profit-margin', 'cmv-cost'];
     calcFields.forEach(fieldId => {
         const field = document.getElementById(fieldId);
         if (field) {
@@ -582,7 +582,7 @@ function calculateInventoryValue() {
     
     systemData.products.forEach(product => {
         const sellingValue = product.sellingPrice * product.stock;
-        const costValue = product.cmv * product.stock;
+        const costValue = product.purchaseCost * product.stock;
         const profitValue = sellingValue - costValue;
         
         totalSellingValue += sellingValue;
@@ -650,7 +650,569 @@ function updateInventorySummary() {
 }
 
 // ============================================
-// 7. SISTEMA DE VENDAS COM ATENDENTE
+// 7. CÁLCULO DE PREÇO CORRETO
+// ============================================
+
+/**
+ * Calcula o preço de venda final com a lógica:
+ * 1. Preço base = Custo de Compra × (1 + Margem/100)
+ * 2. Preço final = Preço base + CMV
+ * 
+ * Exemplo: Custo 6,00 + 50% = 9,00 + CMV 3,00 = 12,00
+ */
+function calculateSellingPrice(purchaseCost, profitMargin, cmvValue) {
+    if (purchaseCost <= 0) return cmvValue;
+    
+    // Passo 1: Preço base com margem SOBRE O CUSTO
+    const basePrice = purchaseCost * (1 + (profitMargin / 100));
+    
+    // Passo 2: Adiciona o CMV (valor fixo)
+    const finalPrice = basePrice + cmvValue;
+    
+    return parseFloat(finalPrice.toFixed(2));
+}
+
+/**
+ * Calcula o preço base (antes do CMV)
+ */
+function calculateBasePrice(purchaseCost, profitMargin) {
+    if (purchaseCost <= 0) return 0;
+    return parseFloat((purchaseCost * (1 + (profitMargin / 100))).toFixed(2));
+}
+
+/**
+ * Calcula o lucro sobre o produto (preço final - custo total)
+ */
+function calculateProfit(finalPrice, purchaseCost, cmvValue) {
+    const totalCost = purchaseCost + cmvValue;
+    return parseFloat((finalPrice - totalCost).toFixed(2));
+}
+
+function updateProductCalculations() {
+    const purchaseCost = sanitizeNumber(parseFloat(document.getElementById('purchase-cost')?.value) || 0);
+    const profitMargin = sanitizeNumber(parseFloat(document.getElementById('profit-margin')?.value) || 0);
+    const cmvValue = sanitizeNumber(parseFloat(document.getElementById('cmv-cost')?.value) || 0);
+    
+    if (purchaseCost < 0) {
+        showAlert('Valores não podem ser negativos', 'error');
+        return;
+    }
+    
+    // Calcular preço base (custo + margem sobre o custo)
+    const basePrice = calculateBasePrice(purchaseCost, profitMargin);
+    
+    // Calcular preço final (base + CMV)
+    const finalPrice = calculateSellingPrice(purchaseCost, profitMargin, cmvValue);
+    
+    // Calcular custo total (compra + CMV)
+    const totalCost = purchaseCost + cmvValue;
+    
+    // Calcular lucro
+    const profit = calculateProfit(finalPrice, purchaseCost, cmvValue);
+    const profitPercent = totalCost > 0 ? (profit / totalCost) * 100 : 0;
+    
+    // Atualizar campos de cálculo
+    const calcFields = {
+        'calc-purchase-cost': purchaseCost,
+        'calc-cmv': cmvValue,
+        'calc-total-cost': totalCost,
+        'calc-profit-percent': profitMargin,
+        'calc-base-price': basePrice,
+        'calc-profit-value': profit,
+        'calc-profit-percent-total': profitPercent.toFixed(1),
+        'calc-suggested-price': finalPrice
+    };
+    
+    Object.entries(calcFields).forEach(([id, value]) => {
+        const element = document.getElementById(id);
+        if (element) {
+            if (id.includes('price') || id.includes('cost') || id.includes('profit-value')) {
+                element.textContent = formatCurrency(value);
+            } else if (id.includes('percent')) {
+                element.textContent = value;
+            } else {
+                element.textContent = typeof value === 'number' ? value.toFixed(2) : value;
+            }
+        }
+    });
+    
+    // Se for um novo produto (não edição), preencher o campo de preço automaticamente
+    const isEdit = document.getElementById('is-edit')?.value === 'true';
+    const sellingPriceField = document.getElementById('selling-price');
+    
+    if (sellingPriceField && (!isEdit || !sellingPriceField.value || sellingPriceField.value == 0)) {
+        sellingPriceField.value = finalPrice.toFixed(2);
+    }
+}
+
+function generateProductId() {
+    systemData.settings.lastProductId++;
+    const idNumber = systemData.settings.lastProductId.toString().padStart(5, '0');
+    return `CAM-${idNumber}`;
+}
+
+async function saveProduct(e) {
+    e.preventDefault();
+    
+    const name = DOMPurify.sanitize(document.getElementById('product-name')?.value.trim() || '');
+    const category = DOMPurify.sanitize(document.getElementById('product-category')?.value || '');
+    const purchaseCost = sanitizeNumber(parseFloat(document.getElementById('purchase-cost')?.value || 0));
+    const cmvValue = sanitizeNumber(parseFloat(document.getElementById('cmv-cost')?.value || 0));
+    const profitMargin = sanitizeNumber(parseFloat(document.getElementById('profit-margin')?.value || 0));
+    let sellingPrice = sanitizeNumber(parseFloat(document.getElementById('selling-price')?.value || 0));
+    const stock = sanitizeNumber(parseInt(document.getElementById('initial-stock')?.value || 0));
+    
+    // Validações
+    if (!name || name.length > 200) {
+        showAlert('Nome do produto é obrigatório e deve ter no máximo 200 caracteres', 'error');
+        return;
+    }
+    
+    if (!category) {
+        showAlert('Categoria do produto é obrigatória', 'error');
+        return;
+    }
+    
+    if (isNaN(purchaseCost) || purchaseCost < 0) {
+        showAlert('Custo de compra deve ser um número positivo', 'error');
+        return;
+    }
+    
+    if (isNaN(cmvValue) || cmvValue < 0) {
+        showAlert('CMV deve ser um número positivo', 'error');
+        return;
+    }
+    
+    if (profitMargin < 0 || profitMargin >= 100) {
+        showAlert('Margem de lucro deve estar entre 0 e 99.9%', 'error');
+        return;
+    }
+    
+    if (isNaN(sellingPrice) || sellingPrice <= 0) {
+        // Se não informou preço, calcular automaticamente
+        sellingPrice = calculateSellingPrice(purchaseCost, profitMargin, cmvValue);
+    }
+    
+    if (isNaN(stock) || stock < 0) {
+        showAlert('Estoque inicial deve ser um número inteiro positivo', 'error');
+        return;
+    }
+    
+    // Calcular preço base e valores derivados
+    const basePrice = calculateBasePrice(purchaseCost, profitMargin);
+    const suggestedPrice = calculateSellingPrice(purchaseCost, profitMargin, cmvValue);
+    
+    const isEdit = document.getElementById('is-edit')?.value === 'true';
+    const productId = DOMPurify.sanitize(document.getElementById('product-id')?.value || '');
+    
+    let product;
+    
+    if (isEdit && productId) {
+        product = systemData.products.find(p => p.id === productId);
+        if (product) {
+            // Atualizar produto existente
+            product.name = name;
+            product.category = category;
+            product.purchaseCost = purchaseCost;
+            product.cmv = cmvValue;
+            product.profitMargin = profitMargin;
+            product.basePrice = parseFloat(basePrice.toFixed(2));
+            product.suggestedPrice = parseFloat(suggestedPrice.toFixed(2));
+            product.sellingPrice = sellingPrice;
+            product.stock = stock;
+            
+            showAlert(`Produto "${name}" atualizado com sucesso!`, 'success');
+        }
+    } else {
+        // Criar novo produto
+        product = {
+            id: generateProductId(),
+            name: name,
+            category: category,
+            purchaseCost: purchaseCost,
+            cmv: cmvValue,
+            profitMargin: profitMargin,
+            basePrice: parseFloat(basePrice.toFixed(2)),
+            suggestedPrice: parseFloat(suggestedPrice.toFixed(2)),
+            sellingPrice: sellingPrice,
+            stock: stock,
+            createdAt: new Date().toISOString().split('T')[0]
+        };
+        
+        systemData.products.push(product);
+        
+        showAlert(`Produto "${name}" cadastrado com sucesso! Código: ${product.id}`, 'success');
+    }
+    
+    await saveData();
+    resetProductForm();
+    updateProductsList();
+    updateInventorySummary();
+    
+    setTimeout(() => {
+        showView('products');
+    }, 2000);
+}
+
+function resetProductForm() {
+    const form = document.getElementById('product-form');
+    if (form) form.reset();
+    
+    const productId = document.getElementById('product-id');
+    const isEdit = document.getElementById('is-edit');
+    const submitBtn = document.getElementById('product-form-submit');
+    
+    if (productId) productId.value = '';
+    if (isEdit) isEdit.value = 'false';
+    if (submitBtn) submitBtn.textContent = 'Salvar Produto';
+    
+    // Valores padrão
+    const defaultFields = {
+        'profit-margin': 50,
+        'initial-stock': 1,
+        'cmv-cost': 0
+    };
+    
+    Object.entries(defaultFields).forEach(([id, value]) => {
+        const field = document.getElementById(id);
+        if (field) field.value = value;
+    });
+    
+    updateProductCalculations();
+}
+
+function loadProductForEdit(productId) {
+    const sanitizedId = DOMPurify.sanitize(productId);
+    const product = systemData.products.find(p => p.id === sanitizedId);
+    if (!product) return;
+    
+    const productIdField = document.getElementById('product-id');
+    const isEditField = document.getElementById('is-edit');
+    const submitBtn = document.getElementById('product-form-submit');
+    
+    if (productIdField) productIdField.value = product.id;
+    if (isEditField) isEditField.value = 'true';
+    if (submitBtn) submitBtn.textContent = 'Atualizar Produto';
+    
+    // Preencher campos
+    const fields = {
+        'product-name': product.name,
+        'product-category': product.category,
+        'purchase-cost': product.purchaseCost,
+        'cmv-cost': product.cmv || 0,
+        'profit-margin': product.profitMargin,
+        'selling-price': product.sellingPrice,
+        'initial-stock': product.stock
+    };
+    
+    Object.entries(fields).forEach(([id, value]) => {
+        const field = document.getElementById(id);
+        if (field) field.value = value;
+    });
+    
+    updateProductCalculations();
+    showView('new-product');
+}
+
+function updateProductsList() {
+    const productsBody = document.getElementById('products-body');
+    if (!productsBody) return;
+    
+    productsBody.innerHTML = '';
+    
+    systemData.products.forEach(product => {
+        const sanitizedName = DOMPurify.sanitize(product.name);
+        const sanitizedCategory = DOMPurify.sanitize(product.category);
+        
+        const row = document.createElement('tr');
+        
+        // Célula ID
+        const idCell = document.createElement('td');
+        idCell.textContent = product.id;
+        row.appendChild(idCell);
+        
+        // Célula Nome
+        const nameCell = document.createElement('td');
+        nameCell.textContent = sanitizedName;
+        row.appendChild(nameCell);
+        
+        // Célula Categoria
+        const categoryCell = document.createElement('td');
+        categoryCell.textContent = getCategoryName(sanitizedCategory);
+        row.appendChild(categoryCell);
+        
+        // Célula Custo de Compra
+        const purchaseCostCell = document.createElement('td');
+        purchaseCostCell.className = 'currency';
+        purchaseCostCell.textContent = formatCurrency(product.purchaseCost);
+        row.appendChild(purchaseCostCell);
+        
+        // Célula CMV
+        const cmvCell = document.createElement('td');
+        cmvCell.className = 'currency';
+        cmvCell.textContent = formatCurrency(product.cmv || 0);
+        row.appendChild(cmvCell);
+        
+        // Célula Preço de Venda
+        const sellingPriceCell = document.createElement('td');
+        const priceInput = document.createElement('input');
+        priceInput.type = 'number';
+        priceInput.className = 'form-control selling-price-input';
+        priceInput.setAttribute('data-id', product.id);
+        priceInput.value = product.sellingPrice.toFixed(2);
+        priceInput.step = '0.01';
+        priceInput.min = '0.01';
+        priceInput.style.width = '120px';
+        sellingPriceCell.appendChild(priceInput);
+        row.appendChild(sellingPriceCell);
+        
+        // Célula Estoque
+        const stockCell = document.createElement('td');
+        const stockBadge = document.createElement('span');
+        if (product.stock < 10) {
+            stockBadge.className = 'badge badge-danger';
+        } else if (product.stock < 20) {
+            stockBadge.className = 'badge badge-warning';
+        } else {
+            stockBadge.className = 'badge badge-success';
+        }
+        stockBadge.textContent = `${product.stock} und.`;
+        stockCell.appendChild(stockBadge);
+        row.appendChild(stockCell);
+        
+        // Célula Valor do Estoque
+        const inventoryValueCell = document.createElement('td');
+        const inventoryValue = product.sellingPrice * product.stock;
+        inventoryValueCell.className = 'currency';
+        inventoryValueCell.textContent = formatCurrency(inventoryValue);
+        row.appendChild(inventoryValueCell);
+        
+        // Célula Ações
+        const actionsCell = document.createElement('td');
+        actionsCell.className = 'actions-cell';
+        
+        // Botão Editar
+        const editBtn = document.createElement('button');
+        editBtn.className = 'btn btn-small btn-warning edit-product';
+        editBtn.setAttribute('data-id', product.id);
+        editBtn.setAttribute('title', 'Editar Produto');
+        const editIcon = document.createElement('i');
+        editIcon.className = 'fas fa-edit';
+        editBtn.appendChild(editIcon);
+        actionsCell.appendChild(editBtn);
+        
+        // Botão Editar Estoque
+        const editStockBtn = document.createElement('button');
+        editStockBtn.className = 'btn btn-small btn-info edit-stock';
+        editStockBtn.setAttribute('data-id', product.id);
+        editStockBtn.setAttribute('title', 'Editar Estoque');
+        const editStockIcon = document.createElement('i');
+        editStockIcon.className = 'fas fa-box';
+        editStockBtn.appendChild(editStockIcon);
+        actionsCell.appendChild(editStockBtn);
+        
+        // Botão Excluir
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'btn btn-small btn-danger delete-product';
+        deleteBtn.setAttribute('data-id', product.id);
+        deleteBtn.setAttribute('title', 'Excluir Produto');
+        const deleteIcon = document.createElement('i');
+        deleteIcon.className = 'fas fa-trash';
+        deleteBtn.appendChild(deleteIcon);
+        actionsCell.appendChild(deleteBtn);
+        
+        row.appendChild(actionsCell);
+        productsBody.appendChild(row);
+    });
+    
+    // Adicionar event listeners
+    setTimeout(() => {
+        document.querySelectorAll('.selling-price-input').forEach(input => {
+            input.addEventListener('change', function() {
+                const productId = DOMPurify.sanitize(this.getAttribute('data-id'));
+                const newPrice = sanitizeNumber(parseFloat(this.value));
+                updateProductPrice(productId, newPrice);
+            });
+        });
+        
+        document.querySelectorAll('.edit-product').forEach(button => {
+            button.addEventListener('click', function() {
+                const productId = DOMPurify.sanitize(this.getAttribute('data-id'));
+                loadProductForEdit(productId);
+            });
+        });
+        
+        document.querySelectorAll('.edit-stock').forEach(button => {
+            button.addEventListener('click', function() {
+                const productId = DOMPurify.sanitize(this.getAttribute('data-id'));
+                const product = systemData.products.find(p => p.id === productId);
+                if (product) {
+                    const sanitizedName = DOMPurify.sanitize(product.name);
+                    const newStock = prompt(`Digite a nova quantidade em estoque para "${sanitizedName}":`, product.stock);
+                    if (newStock !== null && !isNaN(parseInt(newStock)) && parseInt(newStock) >= 0) {
+                        updateProductStock(productId, sanitizeNumber(parseInt(newStock)));
+                    }
+                }
+            });
+        });
+        
+        document.querySelectorAll('.delete-product').forEach(button => {
+            button.addEventListener('click', function() {
+                const productId = DOMPurify.sanitize(this.getAttribute('data-id'));
+                confirmDeleteProduct(productId);
+            });
+        });
+    }, 100);
+    
+    // Atualizar contador no dashboard
+    const totalProducts = document.getElementById('total-products');
+    if (totalProducts) {
+        totalProducts.textContent = systemData.products.length;
+    }
+    
+    // Atualizar resumo do estoque
+    updateInventorySummary();
+}
+
+async function updateProductStock(productId, newStock) {
+    const sanitizedId = DOMPurify.sanitize(productId);
+    const product = systemData.products.find(p => p.id === sanitizedId);
+    if (product && !isNaN(newStock) && newStock >= 0) {
+        product.stock = newStock;
+        await saveData();
+        showAlert(`Estoque do produto atualizado para ${newStock} unidades`, 'success');
+        updateProductsList();
+        updateInventorySummary();
+    } else {
+        showAlert('Quantidade de estoque inválida. Deve ser um número inteiro não-negativo.', 'error');
+    }
+}
+
+function filterProducts() {
+    const searchInput = document.getElementById('product-search');
+    const categoryFilter = document.getElementById('category-filter');
+    
+    if (!searchInput || !categoryFilter) return;
+    
+    const searchTerm = DOMPurify.sanitize(searchInput.value.toLowerCase());
+    const categoryValue = categoryFilter.value;
+    
+    const rows = document.querySelectorAll('#products-body tr');
+    let visibleItems = 0;
+    let visibleInventoryValue = 0;
+    
+    rows.forEach(row => {
+        const productName = row.cells[1]?.textContent.toLowerCase() || '';
+        const productCode = row.cells[0]?.textContent.toLowerCase() || '';
+        const productCategory = row.cells[2]?.textContent || '';
+        const inventoryValueText = row.cells[7]?.textContent || '0,00';
+        
+        const matchesSearch = productName.includes(searchTerm) || productCode.includes(searchTerm);
+        const matchesCategory = !categoryValue || productCategory === getCategoryName(categoryValue);
+        
+        const isVisible = matchesSearch && matchesCategory;
+        row.style.display = isVisible ? '' : 'none';
+        
+        if (isVisible) {
+            visibleItems++;
+            const value = parseFloat(inventoryValueText.replace('R$ ', '').replace('.', '').replace(',', '.'));
+            if (!isNaN(value)) {
+                visibleInventoryValue += value;
+            }
+        }
+    });
+    
+    updateFilteredInventorySummary(visibleItems, visibleInventoryValue);
+}
+
+function updateFilteredInventorySummary(visibleItems, visibleInventoryValue) {
+    const inventorySummary = document.getElementById('inventory-summary');
+    if (!inventorySummary) return;
+    
+    const cards = inventorySummary.querySelectorAll('.card');
+    if (cards.length < 1) return;
+    
+    const totalCard = cards[0];
+    const totalValueElement = totalCard.querySelector('.card-value');
+    const totalSubtitleElement = totalCard.querySelector('.card-subtitle');
+    
+    if (totalValueElement) {
+        totalValueElement.textContent = formatCurrency(visibleInventoryValue);
+    }
+    
+    if (totalSubtitleElement) {
+        const searchInput = document.getElementById('product-search');
+        const categoryFilter = document.getElementById('category-filter');
+        
+        let filterInfo = '';
+        if (searchInput && searchInput.value) {
+            filterInfo += `Filtro: "${searchInput.value}"`;
+        }
+        if (categoryFilter && categoryFilter.value) {
+            if (filterInfo) filterInfo += ' | ';
+            filterInfo += `Categoria: ${categoryFilter.options[categoryFilter.selectedIndex].text}`;
+        }
+        
+        totalSubtitleElement.textContent = filterInfo ? 
+            `${visibleItems} itens (${filterInfo})` : 
+            `${visibleItems} itens em estoque`;
+    }
+}
+
+async function updateProductPrice(productId, newPrice) {
+    const sanitizedId = DOMPurify.sanitize(productId);
+    const product = systemData.products.find(p => p.id === sanitizedId);
+    if (product && !isNaN(newPrice) && newPrice > 0) {
+        product.sellingPrice = newPrice;
+        await saveData();
+        showAlert(`Preço do produto atualizado para ${formatCurrency(newPrice)}`, 'success');
+        updateProductsList();
+        updateInventorySummary();
+    } else {
+        showAlert('Preço inválido. Deve ser um número positivo maior que zero.', 'error');
+    }
+}
+
+function confirmDeleteProduct(productId) {
+    const sanitizedId = DOMPurify.sanitize(productId);
+    const product = systemData.products.find(p => p.id === sanitizedId);
+    if (product) {
+        appState.currentProductId = sanitizedId;
+        
+        const deleteMessage = document.getElementById('delete-message');
+        if (deleteMessage) {
+            deleteMessage.textContent = 
+                DOMPurify.sanitize(`Tem certeza que deseja excluir o produto "${product.name}" (${product.id})? Esta ação não pode ser desfeita.`);
+        }
+        
+        showModal('delete-modal');
+        
+        const confirmDeleteBtn = document.getElementById('confirm-delete');
+        if (confirmDeleteBtn) {
+            confirmDeleteBtn.onclick = async function() {
+                await deleteProduct(sanitizedId);
+                hideModal('delete-modal');
+            };
+        }
+    }
+}
+
+async function deleteProduct(productId) {
+    const sanitizedId = DOMPurify.sanitize(productId);
+    const productIndex = systemData.products.findIndex(p => p.id === sanitizedId);
+    
+    if (productIndex !== -1) {
+        systemData.products.splice(productIndex, 1);
+        await saveData();
+        updateProductsList();
+        updateDashboard();
+        updateInventorySummary();
+        showAlert('Produto excluído com sucesso', 'success');
+    }
+}
+
+// ============================================
+// 8. SISTEMA DE VENDAS COM ATENDENTE
 // ============================================
 
 function updatePaymentMethod() {
@@ -848,7 +1410,7 @@ async function confirmSale(sale) {
 }
 
 // ============================================
-// 8. FUNÇÕES PARA EDIÇÃO DE VENDAS
+// 9. FUNÇÕES PARA EDIÇÃO DE VENDAS
 // ============================================
 
 function editSale(saleId) {
@@ -1329,7 +1891,7 @@ async function saveEditedSale() {
 }
 
 // ============================================
-// 9. SISTEMA DE RECIBOS E IMPRESSÃO
+// 10. SISTEMA DE RECIBOS E IMPRESSÃO
 // ============================================
 
 function showReceipt(sale) {
@@ -1511,7 +2073,7 @@ function printReceipt() {
 }
 
 // ============================================
-// 10. SISTEMA DE RELATÓRIOS EM PDF (VERSÃO SIMPLIFICADA)
+// 11. SISTEMA DE RELATÓRIOS EM PDF (VERSÃO SIMPLIFICADA)
 // ============================================
 
 function generatePDFReport() {
@@ -1678,7 +2240,7 @@ function calculateSalesMetrics(sales) {
 }
 
 // ============================================
-// 11. FUNÇÕES DE APOIO PARA VENDAS
+// 12. FUNÇÕES DE APOIO PARA VENDAS
 // ============================================
 
 function setupNewSale() {
@@ -1955,514 +2517,6 @@ function updateSaleSummary() {
     cartSubtotal.textContent = formatCurrency(subtotal);
     cartDiscount.textContent = formatCurrency(discount);
     cartTotal.textContent = formatCurrency(total);
-}
-
-// ============================================
-// 12. GERENCIAMENTO DE PRODUTOS
-// ============================================
-
-function updateProductCalculations() {
-    const purchaseCost = sanitizeNumber(parseFloat(document.getElementById('purchase-cost')?.value) || 0);
-    const profitMargin = sanitizeNumber(parseFloat(document.getElementById('profit-margin')?.value) || 0);
-    
-    if (purchaseCost < 0) {
-        showAlert('Valores não podem ser negativos', 'error');
-        return;
-    }
-    
-    // CMV = Custo de Compra (simplificado)
-    const cmv = purchaseCost;
-    
-    // Fórmula simplificada: Preço = Custo / (1 - Margem/100)
-    let suggestedPrice = 0;
-    if (profitMargin >= 100) {
-        showAlert('Margem de lucro não pode ser 100% ou mais', 'error');
-        suggestedPrice = purchaseCost * 2;
-    } else {
-        suggestedPrice = purchaseCost / (1 - (profitMargin / 100));
-    }
-    
-    // Atualizar campos de cálculo
-    const calcFields = {
-        'calc-purchase-cost': purchaseCost,
-        'calc-cmv': cmv,
-        'calc-profit-margin': profitMargin,
-        'calc-suggested-price': suggestedPrice
-    };
-    
-    Object.entries(calcFields).forEach(([id, value]) => {
-        const element = document.getElementById(id);
-        if (element) {
-            if (id.includes('currency') || (id.includes('calc-') && (id.includes('cost') || id.includes('price') || id.includes('cmv')))) {
-                element.textContent = formatCurrency(value);
-            } else {
-                element.textContent = typeof value === 'number' ? value.toFixed(2) : value;
-            }
-        }
-    });
-    
-    const isEdit = document.getElementById('is-edit')?.value === 'true';
-    const sellingPriceField = document.getElementById('selling-price');
-    
-    if (sellingPriceField && (!isEdit || !sellingPriceField.value || sellingPriceField.value == 0)) {
-        sellingPriceField.value = suggestedPrice.toFixed(2);
-    }
-}
-
-function generateProductId() {
-    systemData.settings.lastProductId++;
-    const idNumber = systemData.settings.lastProductId.toString().padStart(5, '0');
-    return `CAM-${idNumber}`;
-}
-
-async function saveProduct(e) {
-    e.preventDefault();
-    
-    const name = DOMPurify.sanitize(document.getElementById('product-name')?.value.trim() || '');
-    const category = DOMPurify.sanitize(document.getElementById('product-category')?.value || '');
-    const purchaseCost = sanitizeNumber(parseFloat(document.getElementById('purchase-cost')?.value || 0));
-    const sellingPrice = sanitizeNumber(parseFloat(document.getElementById('selling-price')?.value || 0));
-    const stock = sanitizeNumber(parseInt(document.getElementById('initial-stock')?.value || 0));
-    const profitMargin = sanitizeNumber(parseFloat(document.getElementById('profit-margin')?.value || 40));
-    
-    // Validações
-    if (!name || name.length > 200) {
-        showAlert('Nome do produto é obrigatório e deve ter no máximo 200 caracteres', 'error');
-        return;
-    }
-    
-    if (!category) {
-        showAlert('Categoria do produto é obrigatória', 'error');
-        return;
-    }
-    
-    if (isNaN(purchaseCost) || purchaseCost < 0) {
-        showAlert('Custo de compra deve ser um número positivo', 'error');
-        return;
-    }
-    
-    if (isNaN(sellingPrice) || sellingPrice <= 0) {
-        showAlert('Preço de venda deve ser um número positivo maior que zero', 'error');
-        return;
-    }
-    
-    if (isNaN(stock) || stock < 0) {
-        showAlert('Estoque inicial deve ser um número inteiro positivo', 'error');
-        return;
-    }
-    
-    if (profitMargin < 0 || profitMargin >= 100) {
-        showAlert('Margem de lucro deve estar entre 0 e 99.9%', 'error');
-        return;
-    }
-    
-    // Calcular CMV e preço sugerido
-    const cmv = purchaseCost;
-    const suggestedPrice = purchaseCost / (1 - (profitMargin / 100));
-    
-    const isEdit = document.getElementById('is-edit')?.value === 'true';
-    const productId = DOMPurify.sanitize(document.getElementById('product-id')?.value || '');
-    
-    let product;
-    
-    if (isEdit && productId) {
-        product = systemData.products.find(p => p.id === productId);
-        if (product) {
-            // Atualizar produto existente
-            product.name = name;
-            product.category = category;
-            product.purchaseCost = purchaseCost;
-            product.profitMargin = profitMargin;
-            product.cmv = parseFloat(cmv.toFixed(2));
-            product.suggestedPrice = parseFloat(suggestedPrice.toFixed(2));
-            product.sellingPrice = sellingPrice;
-            product.stock = stock;
-            
-            showAlert(`Produto "${name}" atualizado com sucesso!`, 'success');
-        }
-    } else {
-        // Criar novo produto
-        product = {
-            id: generateProductId(),
-            name: name,
-            category: category,
-            purchaseCost: purchaseCost,
-            profitMargin: profitMargin,
-            cmv: parseFloat(cmv.toFixed(2)),
-            suggestedPrice: parseFloat(suggestedPrice.toFixed(2)),
-            sellingPrice: sellingPrice,
-            stock: stock,
-            createdAt: new Date().toISOString().split('T')[0]
-        };
-        
-        systemData.products.push(product);
-        
-        showAlert(`Produto "${name}" cadastrado com sucesso! Código: ${product.id}`, 'success');
-    }
-    
-    await saveData();
-    resetProductForm();
-    updateProductsList();
-    updateInventorySummary();
-    
-    setTimeout(() => {
-        showView('products');
-    }, 2000);
-}
-
-function resetProductForm() {
-    const form = document.getElementById('product-form');
-    if (form) form.reset();
-    
-    const productId = document.getElementById('product-id');
-    const isEdit = document.getElementById('is-edit');
-    const submitBtn = document.getElementById('product-form-submit');
-    
-    if (productId) productId.value = '';
-    if (isEdit) isEdit.value = 'false';
-    if (submitBtn) submitBtn.textContent = 'Salvar Produto';
-    
-    // Valores padrão
-    const defaultFields = {
-        'profit-margin': 40,
-        'initial-stock': 1
-    };
-    
-    Object.entries(defaultFields).forEach(([id, value]) => {
-        const field = document.getElementById(id);
-        if (field) field.value = value;
-    });
-    
-    updateProductCalculations();
-}
-
-function loadProductForEdit(productId) {
-    const sanitizedId = DOMPurify.sanitize(productId);
-    const product = systemData.products.find(p => p.id === sanitizedId);
-    if (!product) return;
-    
-    const productIdField = document.getElementById('product-id');
-    const isEditField = document.getElementById('is-edit');
-    const submitBtn = document.getElementById('product-form-submit');
-    
-    if (productIdField) productIdField.value = product.id;
-    if (isEditField) isEditField.value = 'true';
-    if (submitBtn) submitBtn.textContent = 'Atualizar Produto';
-    
-    // Preencher campos
-    const fields = {
-        'product-name': product.name,
-        'product-category': product.category,
-        'purchase-cost': product.purchaseCost,
-        'profit-margin': product.profitMargin,
-        'selling-price': product.sellingPrice,
-        'initial-stock': product.stock
-    };
-    
-    Object.entries(fields).forEach(([id, value]) => {
-        const field = document.getElementById(id);
-        if (field) field.value = value;
-    });
-    
-    updateProductCalculations();
-    showView('new-product');
-}
-
-function updateProductsList() {
-    const productsBody = document.getElementById('products-body');
-    if (!productsBody) return;
-    
-    productsBody.innerHTML = '';
-    
-    systemData.products.forEach(product => {
-        const sanitizedName = DOMPurify.sanitize(product.name);
-        const sanitizedCategory = DOMPurify.sanitize(product.category);
-        
-        const row = document.createElement('tr');
-        
-        // Célula ID
-        const idCell = document.createElement('td');
-        idCell.textContent = product.id;
-        row.appendChild(idCell);
-        
-        // Célula Nome
-        const nameCell = document.createElement('td');
-        nameCell.textContent = sanitizedName;
-        row.appendChild(nameCell);
-        
-        // Célula Categoria
-        const categoryCell = document.createElement('td');
-        categoryCell.textContent = getCategoryName(sanitizedCategory);
-        row.appendChild(categoryCell);
-        
-        // Célula Custo de Compra
-        const purchaseCostCell = document.createElement('td');
-        purchaseCostCell.className = 'currency';
-        purchaseCostCell.textContent = formatCurrency(product.purchaseCost);
-        row.appendChild(purchaseCostCell);
-        
-        // Célula CMV
-        const cmvCell = document.createElement('td');
-        cmvCell.className = 'currency';
-        cmvCell.textContent = formatCurrency(product.cmv);
-        row.appendChild(cmvCell);
-        
-        // Célula Preço de Venda
-        const sellingPriceCell = document.createElement('td');
-        const priceInput = document.createElement('input');
-        priceInput.type = 'number';
-        priceInput.className = 'form-control selling-price-input';
-        priceInput.setAttribute('data-id', product.id);
-        priceInput.value = product.sellingPrice.toFixed(2);
-        priceInput.step = '0.01';
-        priceInput.min = '0.01';
-        priceInput.style.width = '120px';
-        sellingPriceCell.appendChild(priceInput);
-        row.appendChild(sellingPriceCell);
-        
-        // Célula Estoque
-        const stockCell = document.createElement('td');
-        const stockBadge = document.createElement('span');
-        if (product.stock < 10) {
-            stockBadge.className = 'badge badge-danger';
-        } else if (product.stock < 20) {
-            stockBadge.className = 'badge badge-warning';
-        } else {
-            stockBadge.className = 'badge badge-success';
-        }
-        stockBadge.textContent = `${product.stock} und.`;
-        stockCell.appendChild(stockBadge);
-        row.appendChild(stockCell);
-        
-        // Célula Valor do Estoque
-        const inventoryValueCell = document.createElement('td');
-        const inventoryValue = product.sellingPrice * product.stock;
-        inventoryValueCell.className = 'currency';
-        inventoryValueCell.textContent = formatCurrency(inventoryValue);
-        row.appendChild(inventoryValueCell);
-        
-        // Célula Ações
-        const actionsCell = document.createElement('td');
-        actionsCell.className = 'actions-cell';
-        
-        // Botão Editar
-        const editBtn = document.createElement('button');
-        editBtn.className = 'btn btn-small btn-warning edit-product';
-        editBtn.setAttribute('data-id', product.id);
-        editBtn.setAttribute('title', 'Editar Produto');
-        const editIcon = document.createElement('i');
-        editIcon.className = 'fas fa-edit';
-        editBtn.appendChild(editIcon);
-        actionsCell.appendChild(editBtn);
-        
-        // Botão Editar Estoque
-        const editStockBtn = document.createElement('button');
-        editStockBtn.className = 'btn btn-small btn-info edit-stock';
-        editStockBtn.setAttribute('data-id', product.id);
-        editStockBtn.setAttribute('title', 'Editar Estoque');
-        const editStockIcon = document.createElement('i');
-        editStockIcon.className = 'fas fa-box';
-        editStockBtn.appendChild(editStockIcon);
-        actionsCell.appendChild(editStockBtn);
-        
-        // Botão Excluir
-        const deleteBtn = document.createElement('button');
-        deleteBtn.className = 'btn btn-small btn-danger delete-product';
-        deleteBtn.setAttribute('data-id', product.id);
-        deleteBtn.setAttribute('title', 'Excluir Produto');
-        const deleteIcon = document.createElement('i');
-        deleteIcon.className = 'fas fa-trash';
-        deleteBtn.appendChild(deleteIcon);
-        actionsCell.appendChild(deleteBtn);
-        
-        row.appendChild(actionsCell);
-        productsBody.appendChild(row);
-    });
-    
-    // Adicionar event listeners
-    setTimeout(() => {
-        document.querySelectorAll('.selling-price-input').forEach(input => {
-            input.addEventListener('change', function() {
-                const productId = DOMPurify.sanitize(this.getAttribute('data-id'));
-                const newPrice = sanitizeNumber(parseFloat(this.value));
-                updateProductPrice(productId, newPrice);
-            });
-        });
-        
-        document.querySelectorAll('.edit-product').forEach(button => {
-            button.addEventListener('click', function() {
-                const productId = DOMPurify.sanitize(this.getAttribute('data-id'));
-                loadProductForEdit(productId);
-            });
-        });
-        
-        document.querySelectorAll('.edit-stock').forEach(button => {
-            button.addEventListener('click', function() {
-                const productId = DOMPurify.sanitize(this.getAttribute('data-id'));
-                const product = systemData.products.find(p => p.id === productId);
-                if (product) {
-                    const sanitizedName = DOMPurify.sanitize(product.name);
-                    const newStock = prompt(`Digite a nova quantidade em estoque para "${sanitizedName}":`, product.stock);
-                    if (newStock !== null && !isNaN(parseInt(newStock)) && parseInt(newStock) >= 0) {
-                        updateProductStock(productId, sanitizeNumber(parseInt(newStock)));
-                    }
-                }
-            });
-        });
-        
-        document.querySelectorAll('.delete-product').forEach(button => {
-            button.addEventListener('click', function() {
-                const productId = DOMPurify.sanitize(this.getAttribute('data-id'));
-                confirmDeleteProduct(productId);
-            });
-        });
-    }, 100);
-    
-    // Atualizar contador no dashboard
-    const totalProducts = document.getElementById('total-products');
-    if (totalProducts) {
-        totalProducts.textContent = systemData.products.length;
-    }
-    
-    // Atualizar resumo do estoque
-    updateInventorySummary();
-}
-
-async function updateProductStock(productId, newStock) {
-    const sanitizedId = DOMPurify.sanitize(productId);
-    const product = systemData.products.find(p => p.id === sanitizedId);
-    if (product && !isNaN(newStock) && newStock >= 0) {
-        product.stock = newStock;
-        await saveData();
-        showAlert(`Estoque do produto atualizado para ${newStock} unidades`, 'success');
-        updateProductsList();
-        updateInventorySummary();
-    } else {
-        showAlert('Quantidade de estoque inválida. Deve ser um número inteiro não-negativo.', 'error');
-    }
-}
-
-function filterProducts() {
-    const searchInput = document.getElementById('product-search');
-    const categoryFilter = document.getElementById('category-filter');
-    
-    if (!searchInput || !categoryFilter) return;
-    
-    const searchTerm = DOMPurify.sanitize(searchInput.value.toLowerCase());
-    const categoryValue = categoryFilter.value;
-    
-    const rows = document.querySelectorAll('#products-body tr');
-    let visibleItems = 0;
-    let visibleInventoryValue = 0;
-    
-    rows.forEach(row => {
-        const productName = row.cells[1]?.textContent.toLowerCase() || '';
-        const productCode = row.cells[0]?.textContent.toLowerCase() || '';
-        const productCategory = row.cells[2]?.textContent || '';
-        const inventoryValueText = row.cells[7]?.textContent || '0,00';
-        
-        const matchesSearch = productName.includes(searchTerm) || productCode.includes(searchTerm);
-        const matchesCategory = !categoryValue || productCategory === getCategoryName(categoryValue);
-        
-        const isVisible = matchesSearch && matchesCategory;
-        row.style.display = isVisible ? '' : 'none';
-        
-        if (isVisible) {
-            visibleItems++;
-            const value = parseFloat(inventoryValueText.replace('R$ ', '').replace('.', '').replace(',', '.'));
-            if (!isNaN(value)) {
-                visibleInventoryValue += value;
-            }
-        }
-    });
-    
-    updateFilteredInventorySummary(visibleItems, visibleInventoryValue);
-}
-
-function updateFilteredInventorySummary(visibleItems, visibleInventoryValue) {
-    const inventorySummary = document.getElementById('inventory-summary');
-    if (!inventorySummary) return;
-    
-    const cards = inventorySummary.querySelectorAll('.card');
-    if (cards.length < 1) return;
-    
-    const totalCard = cards[0];
-    const totalValueElement = totalCard.querySelector('.card-value');
-    const totalSubtitleElement = totalCard.querySelector('.card-subtitle');
-    
-    if (totalValueElement) {
-        totalValueElement.textContent = formatCurrency(visibleInventoryValue);
-    }
-    
-    if (totalSubtitleElement) {
-        const searchInput = document.getElementById('product-search');
-        const categoryFilter = document.getElementById('category-filter');
-        
-        let filterInfo = '';
-        if (searchInput && searchInput.value) {
-            filterInfo += `Filtro: "${searchInput.value}"`;
-        }
-        if (categoryFilter && categoryFilter.value) {
-            if (filterInfo) filterInfo += ' | ';
-            filterInfo += `Categoria: ${categoryFilter.options[categoryFilter.selectedIndex].text}`;
-        }
-        
-        totalSubtitleElement.textContent = filterInfo ? 
-            `${visibleItems} itens (${filterInfo})` : 
-            `${visibleItems} itens em estoque`;
-    }
-}
-
-async function updateProductPrice(productId, newPrice) {
-    const sanitizedId = DOMPurify.sanitize(productId);
-    const product = systemData.products.find(p => p.id === sanitizedId);
-    if (product && !isNaN(newPrice) && newPrice > 0) {
-        product.sellingPrice = newPrice;
-        await saveData();
-        showAlert(`Preço do produto atualizado para ${formatCurrency(newPrice)}`, 'success');
-        updateProductsList();
-        updateInventorySummary();
-    } else {
-        showAlert('Preço inválido. Deve ser um número positivo maior que zero.', 'error');
-    }
-}
-
-function confirmDeleteProduct(productId) {
-    const sanitizedId = DOMPurify.sanitize(productId);
-    const product = systemData.products.find(p => p.id === sanitizedId);
-    if (product) {
-        appState.currentProductId = sanitizedId;
-        
-        const deleteMessage = document.getElementById('delete-message');
-        if (deleteMessage) {
-            deleteMessage.textContent = 
-                DOMPurify.sanitize(`Tem certeza que deseja excluir o produto "${product.name}" (${product.id})? Esta ação não pode ser desfeita.`);
-        }
-        
-        showModal('delete-modal');
-        
-        const confirmDeleteBtn = document.getElementById('confirm-delete');
-        if (confirmDeleteBtn) {
-            confirmDeleteBtn.onclick = async function() {
-                await deleteProduct(sanitizedId);
-                hideModal('delete-modal');
-            };
-        }
-    }
-}
-
-async function deleteProduct(productId) {
-    const sanitizedId = DOMPurify.sanitize(productId);
-    const productIndex = systemData.products.findIndex(p => p.id === sanitizedId);
-    
-    if (productIndex !== -1) {
-        systemData.products.splice(productIndex, 1);
-        await saveData();
-        updateProductsList();
-        updateDashboard();
-        updateInventorySummary();
-        showAlert('Produto excluído com sucesso', 'success');
-    }
 }
 
 // ============================================
@@ -2844,7 +2898,7 @@ function updateReports() {
         sale.items.forEach(item => {
             const product = systemData.products.find(p => p.id === item.productId);
             if (product) {
-                totalCost += product.cmv * item.quantity;
+                totalCost += product.purchaseCost * item.quantity;
             }
         });
     });
